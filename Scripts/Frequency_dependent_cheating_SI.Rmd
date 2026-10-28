@@ -1,0 +1,1246 @@
+---
+output:
+  word_document:
+    fig_height: 6
+    reference_docx: ../MSstyle.docx
+  html_document:
+    df_print: paged
+  pdf_document: default
+always_allow_html: true
+editor_options: 
+  chunk_output_type: inline
+knit: (function(inputFile, encoding) {rmarkdown::render(inputFile,
+      encoding = encoding,
+      envir = globalenv(),
+      output_format = "word_document",
+      output_dir = file.path(dirname(inputFile), "Manuscripts"),
+      output_file = paste0(tools::file_path_sans_ext(basename(inputFile)), "_", Sys.Date(), ".docx"))})
+---
+
+# Extended Data: <br>Frequency-dependent cheating in a cooperative breeding bird
+
+Julian Melgar^1,\*^, Mads F. Schou^2^, Maud Bonato^3^, Zanell Brand^4^, Anel Engelbrecht^4^, Schalk Cloete^5^, Pfunzo T. Muvhali^4,5^, Bengt Hansson^1^, Anna Danielsson^6^, Mikael Åkesson^6^ & Charlie K. Cornwallis^1,\*^
+
+ 
+
+^1^Department of Biology, Lund University, Lund, Sweden. ^2^Department of Biology, Aarhus University, Aarhus C, Denmark. ^3^Department of Biological Sciences, University of Venda, Thohoyandou, South Africa. ^4^Directorate Animal Sciences, Western Cape Department of Agriculture, Elsenburg, South Africa. ^5^Department of Animal Sciences, Stellenbosch University, Matieland, South Africa. ^6^Department of Ecology, Grimsö Wildlife Research Station, Swedish University of Agricultural Sciences, Riddarhyttan, Sweden.\
+^*^e-mail: [julian.melgar\@outlook.com](mailto:julian.melgar@outlook.com){.email}; [charlie.cornwallis\@biol.lu.se](mailto:charlie.cornwallis@biol.lu.se){.email}
+
+\ 
+
+This file includes: Extended Data Figures 1 to 3 and Extended Data Tables 1 to 14
+
+
+\newpage
+```{r Preliminaries, echo=FALSE, include=FALSE, warning=F}
+#Load packages
+conflicted::conflicts_prefer(tidyr::expand, here::here)
+pacman::p_load("knitr","Rmisc","dplyr","tidyverse","ape","cowplot","MCMCglmm","coda","doBy","languageR","QuantPsyc","Hmisc","reshape","doBy","car","gplots","sciplot","ape","ggplot2","tidyr","PerformanceAnalytics","arm","wesanderson","openxlsx","stringdist","kableExtra","data.table","ggsci","arsenal", "ggpubr", "devtools", "here", "nlme", "segmented", "flextable")
+#
+#Load data
+load(here("R_Output_files/Cheating_data.RData"))
+sitduration2012.2018 <-
+  read.csv(here("R_Input_files/sitduration2012.2018 - 13.07.2024.csv"), sep = " ")
+eggs2012.2018 <-
+  read.csv(here("R_Input_files/eggs2012.2018 - 23.04.2024.csv"))
+parentage2012.2018 <- 
+  read.csv(here("R_Input_files/parentage2012.2018.csv"))
+load(here("R_Output_files/CheatingModels.RData"))
+#CheatingModels.RData is a save.image() of the modelling session, so it carries
+#its own copies of the data frames. Loading the data prep output afterwards
+#means the frames always come from Cheating - Model data.R, and do not go stale
+#if the data are rebuilt without refitting the models.
+load(here("R_Output_files/Cheating_Model_Data.RData"))
+#
+#Load functions for processing stats tables
+source(here("R_Input_files/MCMCglmmProc.R"))
+#Found also in: https://raw.githubusercontent.com/charliecornwallis/Rfunctions/master/MCMCglmmProc.R
+#
+#Turn off the informational messages in dplyr when using the summarise() function.
+options(dplyr.summarise.inform = FALSE)
+#
+#On Windows the default temporary path can be long enough to break workbook creation, so R is pointed
+#at a shorter temporary directory through .Renviron, which takes effect in later sessions. This runs on
+#Windows only: elsewhere Sys.getenv("R_USER") is empty, and the previous version of this line wrote to
+#the filesystem root and left R writing its scratch files into a directory named after the unevaluated
+#call. An existing .Renviron is added to rather than overwritten.
+if (.Platform$OS.type == "windows" && nzchar(Sys.getenv("R_USER"))) {
+  short_tmp <- file.path(Sys.getenv("R_USER"), "Rtmp")
+  dir.create(short_tmp, showWarnings = FALSE, recursive = TRUE)
+  renviron_file <- file.path(Sys.getenv("R_USER"), ".Renviron")
+  renviron_lines <- if (file.exists(renviron_file)) readLines(renviron_file, warn = FALSE) else character(0)
+  if (!any(grepl("^TMPDIR=", renviron_lines))) {
+    writeLines(c(renviron_lines, paste0("TMPDIR=", short_tmp)), renviron_file)
+  }
+}
+#
+#MCMCglmmProc rounds pMCMC values for fixed effects to three decimal places
+#and comparisons between fixed effects to five. Because round() drops trailing
+#zeros, tables can mix values such as 0.1, 0.28 and 0.02071.
+#This function displays estimates and intervals to two decimal places and
+#pMCMC values to three, except values below 0.001, which are shown as "< 0.001".
+#This includes values previously rounded to zero; it does not recover precision
+#lost through earlier rounding. Header rows and other text are left untouched.
+format_table = function(tab) {
+  interval <- "^-?[0-9.]+ \\(-?[0-9.]+, ?-?[0-9.]+\\)$"
+
+  tidy_interval <- function(x) vapply(x, function(v) {
+    n <- as.numeric(regmatches(v, gregexpr("-?[0-9.]+", v))[[1]])
+    sprintf("%.2f (%.2f, %.2f)", n[1], n[2], n[3])
+  }, character(1), USE.NAMES = FALSE)
+
+  # Format posterior modes and their intervals.
+  est <- grepl(interval, tab[[2]])
+  tab[[2]][est] <- tidy_interval(tab[[2]][est])
+
+  # The third column contains pMCMC for fixed effects and I2 intervals
+  # for random effects. Format numeric entries without changing text labels.
+  pv <- suppressWarnings(as.numeric(tab[[3]]))
+  numeric_rows <- which(!is.na(pv))
+
+  tab[[3]][numeric_rows] <- ifelse(
+    pv[numeric_rows] < 0.001,
+    "< 0.001",
+    sprintf("%.3f", pv[numeric_rows]))
+
+  # Format I2 estimates and their intervals to two decimal places.
+  i2 <- grepl(interval, tab[[3]])
+  tab[[3]][i2] <- tidy_interval(tab[[3]][i2])
+
+  tab
+}
+#
+#Every Extended Data table has the same shape: a term in the first column, then
+#one or two pairs of estimate and pMCMC columns, with section rows separating
+#fixed from random effects. flextable is used rather than kableExtra because it
+#renders to Word, HTML and PDF from the same code, whereas kableExtra's HTML
+#styling is dropped when the document is knitted to Word.
+si_table <- function(tab, caption, panel_labels = NULL,
+                     sections = NULL, footnote = NULL) {
+  if (is.null(sections)) {
+    sections <- grep("^Fixed|^Random", tab[[1]])
+  }
+  #Preserve displayed labels while making internal column names unique.
+  shown <- names(tab)
+  names(tab) <- make.unique(names(tab))
+  ft <- flextable(tab)
+  # Body-row indices shift only when the column labels are moved into it.
+  body_offset <- 0L
+  if (!is.null(panel_labels)) {
+    #Only the universal panel labels remain in the repeating header.
+    ft <- delete_part(ft, part = "header")
+    ft <- add_header_row(
+      ft,
+      values = panel_labels,
+      colwidths = c(1, 2, 2))
+    ft <- align(
+      ft,
+      i = 1,
+      align = "center",
+      part = "header")
+    #Display the column labels once, as the first body row.
+    ft <- add_body_row(
+      ft,
+      values = shown,
+      colwidths = rep(1L, ncol(tab)),
+      top = TRUE)
+    body_offset <- 1L
+    ft <- bold(ft, i = 1, part = "body")
+    ft <- bg(ft, i = 1, bg = "#E7E5E5", part = "body")
+  } else {
+    ft <- set_header_labels(
+      ft,
+      values = setNames(as.list(shown), names(tab)))
+  }
+
+  #Caption: bold table label, followed by the explanatory text.
+  lab <- regmatches(
+    caption,
+    regexpr("^[^.]*\\.\\s*", caption))
+  body <- substring(caption, nchar(lab) + 1)
+  cap_props <- fp_text_default(font.family = "Times New Roman")
+  ft <- set_caption(ft,
+                    caption = as_paragraph(as_chunk(lab,
+                                                    props = update(cap_props, bold = TRUE)),
+                                           as_chunk(body, props = cap_props)))
+  #Repeating header.
+  ft <- bold(ft, part = "header")
+  ft <- bg(ft, bg = "#E7E5E5", part = "header")
+  if (!is.null(panel_labels)) {
+  header_border <- officer::fp_border(color = "black", width = 0.75)
+  #Above and below the repeating panel-label row.
+  ft <- hline_top(ft, border = header_border, part = "header")
+  ft <- hline_bottom(ft, border = header_border, part = "header")
+  #Below the non-repeating column-label row.
+  ft <- hline(ft, i = 1, border = header_border, part = "body")
+}
+  #Section rows, adjusted for the inserted body row.
+  if (length(sections)) {
+    ft <- bold(ft, 
+               i = sections + body_offset,
+               part = "body")
+    ft <- bg(ft,
+             i = sections + body_offset,
+             bg = "#E7E5E5",
+             part = "body")
+  }
+  ft <- align(ft, j = 1, align = "left", part = "all")
+  ft <- align(ft,
+              j = seq(2, ncol(tab)),
+              align = "center",
+              part = "all")
+
+  #Significant pMCMC and p values, adjusted for the inserted body row.
+  for (j in grep("^pMCMC|: p$", shown)) {
+    p_text <- trimws(as.character(tab[[j]]))
+    p_num <- suppressWarnings(as.numeric(p_text))
+    sig <- which(p_text == "< 0.001" |
+                   (!is.na(p_num) & p_num < 0.05))
+    if (length(sig)) {
+      ft <- bold(ft,
+                 i = sig + body_offset,
+                 j = j,
+                 part = "body")
+    }
+  }
+  if (!is.null(footnote)) {
+    ft <- add_footer_lines(ft, footnote)
+  }
+  ft <- fontsize(ft, size = 8, part = "all")
+  ft <- font(ft, fontname = "Times New Roman", part = "all")
+  ft <- padding(ft, padding = 2, part = "all")
+  set_table_properties(
+    autofit(ft),
+    layout = "autofit",
+    width = 1,
+    align = "left",
+    opts_word = list(repeat_headers = TRUE))
+}
+#
+#
+#function to combine main effects and two-way interactions from different MCMCglmm models
+model_combine = function(M,I2){
+combM<-I2#Highest order model
+combM$Sol[1:dim(M$Sol)[1],1:dim(M$Sol)[2]]<-M$Sol#Replace main effect in model object
+return(combM)
+}
+#
+#MCMCglmmProc applies fixed_names by position, so if a model's fixed effects ever come back in a
+#different order the names are silently attached to the wrong terms. The order of factor levels, and
+#therefore of the fixed effects, can change with the collation locale. This check stops the document
+#rather than letting a mislabelled table through.
+check_fixed_order = function(model, expected) {
+  if (!identical(colnames(model$Sol), expected)) {
+    stop("Fixed effects are not in the order the table names assume.\n  found:    ",
+         paste(colnames(model$Sol), collapse = ", "),
+         "\n  expected: ", paste(expected, collapse = ", "))
+  }
+}
+#The order Extended Data Table 5 and st_eggs_excl_1coop name their fixed effects in
+BS2_terms = c("BS_2Cheat", "BS_2Coop_w/o_Cheat", "BS_2Coop_w_Cheat", "ZnoFOther", "logit_prop.BrokenInc",
+              "BS_2Cheat:ZnoFCoops", "BS_2Coop_w/o_Cheat:ZnoFCoops", "BS_2Coop_w_Cheat:ZnoFCoops",
+              "BS_2Cheat:ZnoFCoops2", "BS_2Coop_w/o_Cheat:ZnoFCoops2", "BS_2Coop_w_Cheat:ZnoFCoops2")
+#
+#Distribution variance for the I2 denominator of a Poisson (log link) model. The distribution-specific
+#variance on the latent scale is ln(1 + 1/lambda), with lambda the fitted mean on the data scale
+#(Nakagawa & Schielzeth 2010; de Villemereuil et al. 2016). It is computed from the same model object
+#that is passed to MCMCglmmProc so that the variance components and lambda come from one model.
+poisson_dist_var = function(model) log(1 + 1 / mean(predict(model)))
+#
+#function to combine main effects, two-way interactions and three-way interactions from different MCMCglmm models
+model_combine2 = function(M,I2,I3){
+combM<-I3#Highest order model
+combM$Sol[1:dim(M$Sol)[1],1:dim(M$Sol)[2]]<-M$Sol#Replace main effect in model object
+combM$Sol[1:dim(I2$Sol)[1],(1+dim(M$Sol)[2]):dim(I2$Sol)[2]]<-I2$Sol[1:dim(I2$Sol)[1],(1+dim(M$Sol)[2]):dim(I2$Sol)[2]]#Replace two-way interactions effect in model object
+return(combM)
+}
+#
+```
+
+```{r Filtered individual data, echo=F}
+#Create filtered female individual data 
+#Subset data to only include females
+inds_filtered <- individuals2012.2018[individuals2012.2018$sex == "F",]
+#
+#Subset data to exclude groups with only one female
+inds_filtered <- inds_filtered[inds_filtered$nofemales != 1,]
+#
+#Subset data to only include camps where eggs were laid during the period with natural incubation
+#and eggs were genotyped during the period with natural incubation and 4 weeks before
+#Match data
+inds_filtered$totGenoeggsCampInc4 <- camps2012.2018$totGenoeggsCampInc4[match(inds_filtered$yearcamp, camps2012.2018$yearcamp)]
+inds_filtered$no.eggsCampInc <- camps2012.2018$no.eggsCampInc[match(inds_filtered$yearcamp, camps2012.2018$yearcamp)]
+inds_filtered <- inds_filtered[which(inds_filtered$totGenoeggsCampInc4 != 0 & inds_filtered$no.eggsCampInc != 0),]
+#
+#Exclude individuals in camps with no nests
+#Match data
+inds_filtered$nonests <- camps2012.2018$nonests[match(inds_filtered$yearcamp, camps2012.2018$yearcamp)]
+inds_filtered <- inds_filtered[inds_filtered$nonests != 0,]
+#
+#Exclude individuals in camps with no female incubation
+inds_filtered <- inds_filtered[inds_filtered$femSitdurCamp != 0,]
+#
+#
+#Create filtered male individual data
+#Subset data to only include males
+inds_filtered_M <- individuals2012.2018[individuals2012.2018$sex == "M",]
+#
+#Subset data to exclude groups with only one female
+inds_filtered_M <- inds_filtered_M[inds_filtered_M$nofemales != 1,]
+#
+#Subset data to only include camps where eggs were laid during the period with natural incubation
+#and eggs were genotyped during the period with natural incubation and 4 weeks before
+#Match data
+inds_filtered_M$totGenoeggsCampInc4 <- camps2012.2018$totGenoeggsCampInc4[match(inds_filtered_M$yearcamp, camps2012.2018$yearcamp)]
+inds_filtered_M$no.eggsCampInc <- camps2012.2018$no.eggsCampInc[match(inds_filtered_M$yearcamp, camps2012.2018$yearcamp)]
+inds_filtered_M <- inds_filtered_M[which(inds_filtered_M$totGenoeggsCampInc4 != 0 & inds_filtered_M$no.eggsCampInc != 0),]
+#
+#Exclude individuals in camps with no nests
+#Match data
+inds_filtered_M$nonests <- camps2012.2018$nonests[match(inds_filtered_M$yearcamp, camps2012.2018$yearcamp)]
+inds_filtered_M <- inds_filtered_M[inds_filtered_M$nonests != 0,]
+#
+#Exclude individuals in camps with no female incubation
+inds_filtered_M <- inds_filtered_M[inds_filtered_M$femSitdurCamp != 0,]
+#
+```
+
+```{r Cheating individuals, echo=FALSE, include=FALSE}
+#Subset data to only include individuals that were a cheat in at least one year and that were included in more than one year
+cheats_ever <- df_cheat_prob %>%#df_cheat_prob only includes individuals present in more than one year
+  group_by(id) %>%
+  dplyr::filter(any(BS == "Cheat")) %>%
+  ungroup()
+#
+#Create a dataframe with all individuals included in more than one year, and that have ever been a cheat, where the number of times they have been cheats, cooperators, or other is shown
+cheats_ever_BS <- as.data.frame.matrix(table(cheats_ever$id, cheats_ever$BS))
+cheats_ever_BS <- rownames_to_column(cheats_ever_BS, var = "id")
+```
+
+```{r Table processing, echo=FALSE, include=FALSE}
+#Run the code for creating the tables
+#
+#**Extended Data Table 1:*
+summary(m_strategy_counts_int_c1)
+st_strategy_counts_model<- model_combine(M=m_strategy_counts_main_c1, I2=m_strategy_counts_int_c1)
+check_fixed_order(st_strategy_counts_model, c("BSCheat", "BSCooperator", "Znonests",
+                                              "BSCheat:Znofemales", "BSCooperator:Znofemales"))
+#Excel table
+Cheating_SItablesXL<-MCMCglmmProc(model=st_strategy_counts_model,start_row=1,workbook=NULL,create_sheet="yes",sheet="Suppl. Table 1",
+                                  title="**Extended Data Table 1**: Effect of group size on frequencies of cooperators and cheats.",
+                                  fixed_names=c("Cheats", "Cooperators", "ZNumber of nests",
+                                                "Cheats : ZNumber of females", "Cooperators : ZNumber of females"),
+                                  fixed_diffinc = "Cheats : ZNumber of females vs Cooperators : ZNumber of females",
+                                  Include_random = "yes",
+                                  randomvar_names=c("Year", "Camp", "Group", "Residual"),
+                                  variances=c("year", "camp", "yearcamp", "units"),
+                                  dist_var=poisson_dist_var(st_strategy_counts_model),
+                                  padding=3)
+#R markdown table
+st_strategy_counts<-xl_2_df(xltab=Cheating_SItablesXL,sheet="Suppl. Table 1")
+st_strategy_counts <- format_table(st_strategy_counts)
+#
+#**Extended Data Table 2:*
+summary(m_cheat_prop_main_c1)
+st_cheat_prop_model<- m_cheat_prop_main_c1
+check_fixed_order(st_cheat_prop_model, c("(Intercept)", "ZnoFCoopsCamp", "ZnoFOtherCamp", "Znonests"))
+#Excel table
+Cheating_SItablesXL<-MCMCglmmProc(model=st_cheat_prop_model,start_row=1,workbook=Cheating_SItablesXL,create_sheet="yes",sheet="Suppl. Table 2",
+                                  title="**Extended Data Table 2**: Effect of group size on proportion of cheats relative to cooperators.",
+                                  fixed_names=c("Intercept", "ZNumber of cooperators", "ZNumber of other", "ZNumber of nests"),
+                                  fixed_diffinc = "none",
+                                  Include_random = "yes",
+                                  randomvar_names=c("Year", "Camp", "Residual"),
+                                  variances=c("year", "camp", "units"),
+                                  dist_var=pi^2 / 3,
+                                  padding=3)
+#R markdown table
+st_cheat_prop<-xl_2_df(xltab=Cheating_SItablesXL,sheet="Suppl. Table 2")
+st_cheat_prop <- format_table(st_cheat_prop)
+#
+#**Extended Data Table 3:*
+summary(m_cheat_prob_main_c1)
+st_cheat_prob_model<- m_cheat_prob_main_c1
+#Excel table
+Cheating_SItablesXL<-MCMCglmmProc(model=st_cheat_prob_model,start_row=1,workbook=Cheating_SItablesXL,create_sheet="yes",sheet="Suppl. Table 3", 
+                                  title="**Extended Data Table 3**: Effects of group size and individual condition on individual probability of being a cheat.", 
+                                  fixed_names=c("Intercept", "ZNumber of cooperators", "ZNumber of other", "ZAge", "ZInitial mass"),
+                                  fixed_diffinc = "none", 
+                                  Include_random = "yes", 
+                                  randomvar_names=c("Year", "Camp", "Group", "Individual", "Residual"), 
+                                  variances=c("year", "camp", "yearcamp", "id", "units"),
+                                  dist_var=1,
+                                  padding=3)
+#R markdown table
+st_cheat_prob<-xl_2_df(xltab=Cheating_SItablesXL,sheet="Suppl. Table 3")
+st_cheat_prob <- format_table(st_cheat_prob)
+#
+#**Extended Data Table 4:*
+summary(m_mass_int_c1)
+st_mass_model <- model_combine(M = m_mass_main_c1, I2 = m_mass_int_c1)
+#Excel table
+Cheating_SItablesXL<-MCMCglmmProc(model=st_mass_model,start_row=1,workbook=Cheating_SItablesXL,create_sheet="yes",sheet="Suppl. Table 4",
+                                  title="**Extended Data Table 4**: Effect of breeding strategy and group composition on female body mass at the end of the breeding season.",
+                                  fixed_names=c("Cheats", "Cooperators",
+                                                "Cheats : ZNumber of cooperators", "Cooperators : ZNumber of cooperators",
+                                                "Cheats : ZNumber of other", "Cooperators : ZNumber of other",
+                                                "Cheats : ZMass at start of season", "Cooperators : ZMass at start of season"),
+                                  fixed_diffinc = c("Cheats vs Cooperators"),
+                                  Include_random = "yes", randomvar_names=c("Camp", "Year", "Group", "Individual", "Residual"),
+                                  variances=c("camp", "year", "yearcamp", "id", "units"),
+                                  dist_var=0,
+                                  padding=3)
+#R markdown table
+st_mass<-xl_2_df(xltab=Cheating_SItablesXL,sheet="Suppl. Table 4")
+st_mass <- format_table(st_mass)
+#
+#**Extended Data Table 5:*
+summary(m_eggs_quad_c1)
+st_eggs_model<-model_combine2(M=m_eggs_main_c1, I2=m_eggs_int_c1, I3=m_eggs_quad_c1)
+#Excel table
+check_fixed_order(st_eggs_model, BS2_terms)
+Cheating_SItablesXL<-MCMCglmmProc(model=st_eggs_model,start_row=1,workbook=Cheating_SItablesXL,create_sheet="yes",sheet="Suppl. Table 5 all groups",
+                                  title="**Extended Data Table 5** (all groups): Effect of the presence of cheats and group size on reproductive investment. The number of eggs laid by each female was modelled as a count, with year fitted as a random effect to account for year-to-year variation in egg production, giving reproductive investment relative to the annual mean.", 
+                                  fixed_names=c("Cheats", "Cooperators in groups without cheats",
+                                                "Cooperators in groups with cheats",
+                                                "ZNumber of other",
+                                                "Logit_Proportion of broken eggs",
+                                                "Cheats : ZNumber of cooperators",
+                                                "Cooperators in groups without cheats : ZNumber of cooperators",
+                                                "Cooperators in groups with cheats : ZNumber of cooperators",
+                                                "Cheats : Znumber of cooperators^2", "Cooperators in groups without cheats : ZNumber of cooperators^2",
+                                                "Cooperators in groups with cheats : ZNumber of cooperators^2"),
+                                  fixed_diffinc = c("Cheats vs Cooperators in groups without cheats", "Cheats vs Cooperators in groups with cheats",
+                                                    "Cooperators in groups without cheats vs Cooperators in groups with cheats",
+                                                    "Cooperators in groups without cheats : ZNumber of cooperators vs Cooperators in groups with cheats : ZNumber of cooperators",
+                                                    "Cheats : ZNumber of cooperators vs Cooperators in groups with cheats : ZNumber of cooperators",
+                                                    "Cheats : ZNumber of cooperators vs Cooperators in groups without cheats : ZNumber of cooperators",
+                                                    "Cooperators in groups without cheats : ZNumber of cooperators^2 vs Cooperators in groups with cheats : ZNumber of cooperators^2",
+                                                    "Cheats : Znumber of cooperators^2 vs Cooperators in groups with cheats : ZNumber of cooperators^2",
+                                                    "Cheats : Znumber of cooperators^2 vs Cooperators in groups without cheats : ZNumber of cooperators^2"),
+                                  Include_random = "yes", randomvar_names=c("Camp", "Year", "Group", "Individual", "Residual"),
+                                  variances=c("camp", "year", "yearcamp", "id", "units"),
+                                  dist_var=poisson_dist_var(st_eggs_model),
+                                  padding=3)
+#R markdown table
+st_eggs<-xl_2_df(xltab=Cheating_SItablesXL,sheet="Suppl. Table 5 all groups")
+st_eggs <- format_table(st_eggs)
+#
+#**Extended Data Table 5: differences between the fitted curves for cooperators with and without cheats*
+#The quadratic contrast above shows that the two curves differ in shape, but not at which group sizes
+#they differ. These rows test that directly: at each number of cooperators the fitted value for
+#cooperators in groups with cheats is subtracted from the fitted value for cooperators in groups
+#without cheats, for every posterior sample.
+#Note these are computed from m_eggs_quad_c1 rather than from the st_activity_display object st_eggs_model, because st_eggs_model takes the
+#intercepts from the main-effects-only model m_eggs_main_c1 and the fitted curves require all terms to come
+#from the same model.
+#Number of cooperators was z-transformed before modelling, so the plotted values 1 to 5 are first
+#converted to the z-scale using the mean and sd of the model data, and squared to give the quadratic term
+zCoops_S4 <- (1:5 - mean(df_eggs$noFCoopsCamp)) / sd(df_eggs$noFCoopsCamp)
+#The other covariates are held at their overall mean, the same value for both strategies, so that the
+#comparison isolates breeding strategy. Under the log link of the Poisson model the covariate terms do
+#not cancel as they would on an identity scale, so a common value has to be chosen rather than each
+#strategy's own mean
+zOther_S4  <- mean(df_eggs$ZnoFOther)
+broken_S4  <- mean(df_eggs$logit_prop.BrokenInc)
+#The log link is non-linear, so fitted counts are averaged over the random-effect distribution, taken
+#at the midpoints of 40 equal-probability slices of a normal. The year variance is left out of that
+#average and the fitted values are divided by the overall fitted value: dividing a count by its annual
+#mean removes the year effect, so this expresses the differences as reproductive investment relative
+#to the annual mean, the same scale as Fig. 2A
+REnodes_S4 <- qnorm(seq(0.5/40, 1 - 0.5/40, length.out = 40))
+V_S4 <- rowSums(m_eggs_quad_c1$VCV[, colnames(m_eggs_quad_c1$VCV) != "year"])
+fitted_S4 <- function(strategy, z){
+  eta <- m_eggs_quad_c1$Sol[, paste0("BS_2", strategy)] +
+         m_eggs_quad_c1$Sol[, "ZnoFOther"] * zOther_S4 +
+         m_eggs_quad_c1$Sol[, "logit_prop.BrokenInc"] * broken_S4 +
+         m_eggs_quad_c1$Sol[, paste0("BS_2", strategy, ":ZnoFCoops")]  * z +
+         m_eggs_quad_c1$Sol[, paste0("BS_2", strategy, ":ZnoFCoops2")] * z^2
+  rowMeans(sapply(REnodes_S4, function(u) exp(eta + sqrt(V_S4) * u)))
+}
+#Reference value: the fitted value averaged over the composition of the observed data
+zAll_S4 <- (df_eggs$noFCoopsCamp - mean(df_eggs$noFCoopsCamp)) / sd(df_eggs$noFCoopsCamp)
+ref_S4  <- rowMeans(sapply(seq_len(nrow(df_eggs)), function(i)
+  fitted_S4(as.character(df_eggs$BS_2[i]), zAll_S4[i])))
+#The three pairs of strategies compared, in the same order as the panels of Fig. 2B, with the names
+#they are given in the table
+Pairs_S4 <- list(c("Coop_w/o_Cheat", "Coop_w_Cheat"),
+                 c("Cheat", "Coop_w_Cheat"),
+                 c("Cheat", "Coop_w/o_Cheat"))
+PairNames_S4 <- c("Cooperators in groups without cheats vs Cooperators in groups with cheats",
+                  "Cheats vs Cooperators in groups with cheats",
+                  "Cheats vs Cooperators in groups without cheats")
+#Each pair is differenced at each number of cooperators and summarised the same way MCMCglmmProc
+#summarises fixed effects: posterior mode, 95% HPD interval and a two-tailed pMCMC bounded below by
+#1/(number of posterior samples)
+Diffs_S4 <- do.call(rbind, lapply(seq_along(Pairs_S4), function(k){
+  pair <- Pairs_S4[[k]]
+  draws <- as.mcmc(sapply(zCoops_S4, function(z)
+    (fitted_S4(pair[1], z) - fitted_S4(pair[2], z)) / ref_S4))
+  pm  <- round(posterior.mode(draws), 2)
+  hpd <- round(HPDinterval(draws), 2)
+  p   <- round(pmax(0.5 / nrow(draws),
+                    pmin(colSums(draws > 0) / nrow(draws),
+                         1 - colSums(draws > 0) / nrow(draws))) * 2, 3)
+  data.frame('Fixed Effects' = paste0(PairNames_S4[k], " : ", 1:5, " cooperators in group"),
+             'Posterior Mode (CI)' = paste0(pm, " (", hpd[,1], ", ", hpd[,2], ")"),
+             pMCMC = as.character(p), check.names = FALSE)
+}))
+#Add the rows to the markdown table, after the existing fixed effect comparisons and before the random
+#effects, with a section heading formatted as the other section headings in the table
+st_eggs <- rbind(st_eggs[1:(grep("^Random Effects", st_eggs$'Fixed Effects') - 1),],
+            data.frame('Fixed Effects' = "Fixed Effect Comparisons: fitted values",
+                       'Posterior Mode (CI)' = "Posterior Mode (CI)",
+                       pMCMC = "pMCMC", check.names = FALSE),
+            Diffs_S4,
+            st_eggs[grep("^Random Effects", st_eggs$'Fixed Effects'):nrow(st_eggs),])
+rownames(st_eggs) <- NULL
+#The rows just added are formatted on the same convention as the rest of the table
+st_eggs <- format_table(st_eggs)
+#
+#**Extended Data Table 5:*
+summary(m_eggs_excl_1coop_quad_c1)
+st_eggs_excl_1coop_model<-model_combine2(M=m_eggs_excl_1coop_main_c1, I2=m_eggs_excl_1coop_int_c1, I3=m_eggs_excl_1coop_quad_c1)
+#Excel table
+check_fixed_order(st_eggs_excl_1coop_model, BS2_terms)
+Cheating_SItablesXL<-MCMCglmmProc(model=st_eggs_excl_1coop_model,start_row=1,workbook=Cheating_SItablesXL,create_sheet="yes",sheet="Suppl. Table 5 excl. 1 coop",
+                                  title="**Extended Data Table 5** (excluding groups with one cooperator): Effect of the presence of cheats and group size on reproductive investment. The number of eggs laid by each female was modelled as a count, with year fitted as a random effect to account for year-to-year variation in egg production, giving reproductive investment relative to the annual mean. Excluding groups with one cooperator", 
+                                  fixed_names=c("Cheats", "Cooperators in groups without cheats",
+                                                "Cooperators in groups with cheats",
+                                                "ZNumber of other",
+                                                "Logit_Proportion of broken eggs",
+                                                "Cheats : ZNumber of cooperators",
+                                                "Cooperators in groups without cheats : ZNumber of cooperators",
+                                                "Cooperators in groups with cheats : ZNumber of cooperators",
+                                                "Cheats : Znumber of cooperators^2", "Cooperators in groups without cheats : ZNumber of cooperators^2",
+                                                "Cooperators in groups with cheats : ZNumber of cooperators^2"),
+                                  fixed_diffinc = c("Cheats vs Cooperators in groups without cheats", "Cheats vs Cooperators in groups with cheats",
+                                                    "Cooperators in groups without cheats vs Cooperators in groups with cheats",
+                                                    "Cooperators in groups without cheats : ZNumber of cooperators vs Cooperators in groups with cheats : ZNumber of cooperators",
+                                                    "Cheats : ZNumber of cooperators vs Cooperators in groups with cheats : ZNumber of cooperators",
+                                                    "Cheats : ZNumber of cooperators vs Cooperators in groups without cheats : ZNumber of cooperators",
+                                                    "Cooperators in groups without cheats : ZNumber of cooperators^2 vs Cooperators in groups with cheats : ZNumber of cooperators^2",
+                                                    "Cheats : Znumber of cooperators^2 vs Cooperators in groups with cheats : ZNumber of cooperators^2",
+                                                    "Cheats : Znumber of cooperators^2 vs Cooperators in groups without cheats : ZNumber of cooperators^2"),
+                                  Include_random = "yes", randomvar_names=c("Camp", "Year", "Group", "Individual", "Residual"),
+                                  variances=c("camp", "year", "yearcamp", "id", "units"),
+                                  dist_var=poisson_dist_var(st_eggs_excl_1coop_model),
+                                  padding=3)
+#R markdown table
+st_eggs_excl_1coop<-xl_2_df(xltab=Cheating_SItablesXL,sheet="Suppl. Table 5 excl. 1 coop")
+st_eggs_excl_1coop <- format_table(st_eggs_excl_1coop)
+#
+#**Extended Data Table 6:*
+summary(m_eggs_within_female_main_c1)
+st_eggs_within_female_model <- m_eggs_within_female_main_c1
+#Excel table
+check_fixed_order(st_eggs_within_female_model, c("BSCheat", "BSCooperator", "Znofemales", "Zage"))
+Cheating_SItablesXL <- 
+  MCMCglmmProc(model = st_eggs_within_female_model, start_row = 1, workbook = Cheating_SItablesXL, create_sheet = "yes",
+               sheet = "Suppl. Table 6",
+               title = "**Extended Data Table 6**: Do opportunistic individuals invest more in reproduction when they cheat? The number of eggs laid by each female was modelled as a count, with year fitted as a random effect to account for year-to-year variation in egg production, giving reproductive investment relative to the annual mean.",
+               fixed_names=c("Cheats", "Cooperates", "ZNumber of females", "ZAge"), 
+               fixed_diffinc = c("Cheats vs Cooperates"),
+               Include_random = "yes",
+               randomvar_names = c("Camp", "Year", "Group", "Individual", "Residual"),
+               variances = c("camp", "year", "yearcamp", "id", "units"),
+               dist_var=poisson_dist_var(st_eggs_within_female_model),
+               padding = 3)
+#R markdown table
+st_eggs_within_female <- xl_2_df(xltab = Cheating_SItablesXL, sheet = "Suppl. Table 6")
+st_eggs_within_female <- format_table(st_eggs_within_female)
+#
+#**Extended Data Table 7:*
+summary(m_laying_group_quad_c1)
+st_laying_group_model <- model_combine2(M=m_laying_group_main_c1, I2=m_laying_group_int_c1, I3=m_laying_group_quad_c1)
+#Excel table
+Cheating_SItablesXL<-MCMCglmmProc(model=st_laying_group_model,start_row=1,workbook=NULL,create_sheet="yes",
+                                  sheet="Suppl. Table 7",
+                                  title="**Extended Data Table 7**: Group-level egg laying across time.",
+                                  fixed_names=c("Cheats in camp - No", "Cheats in camp - Yes",
+                                                "ZNumber of cooperators", "ZNumber of other", "ZDays",
+                                                "Cheats in camp - Yes : ZDays", "ZnoCoops : ZDays",
+                                                "Cheats in camp - No : ZDays^2", "Cheats in camp - Yes : ZDays^2",
+                                                "ZnoCoops : ZDays^2"),
+                                  fixed_diffinc = c("Cheats in camp - No vs Cheats in camp - Yes",
+                                                    "Cheats in camp - No : ZDays^2 vs Cheats in camp - Yes : ZDays^2"),
+                                  Include_random = "yes",
+                                  randomvar_names=c("Year", "Camp", "Group", "Residual"),
+                                  variances=c("year", "camp", "yearcamp", "units"),
+                                  dist_var=pi^2 / 3,
+                                  padding=3)
+#R markdown table
+st_laying_group<-xl_2_df(xltab=Cheating_SItablesXL,sheet="Suppl. Table 7")
+st_laying_group <- format_table(st_laying_group)
+#
+#**Extended Data Table 8:*
+summary(m_laying_window_quad_c1)
+st_laying_window_model <- model_combine2(M = m_laying_window_main_c1, I2 = m_laying_window_int_c1, I3 = m_laying_window_quad_c1)
+#Excel table
+Cheating_SItablesXL<-MCMCglmmProc(model=st_laying_window_model,start_row=1,workbook=Cheating_SItablesXL,create_sheet="yes",sheet="Suppl. Table 8",
+                                  title="**Extended Data Table 8**: Effect of breeding strategy on the probability that a female laid an egg within a two-day window during the laying period.",
+                                  fixed_names=c("Cheats", "Cooperators", "ZNumber of females",
+                                                "Cheats : ZWindow", "Cooperators : ZWindow",
+                                                "Cheats : ZWindow^2", "Cooperators : ZWindow^2"),
+                                  fixed_diffinc = c("Cheats vs Cooperators",
+                                                    "Cheats : ZWindow vs Cooperators : ZWindow",
+                                                    "Cheats : ZWindow^2 vs Cooperators : ZWindow^2"),
+                                  Include_random = "yes", randomvar_names=c("Year", "Camp", "Group", "Individual", "Residual"),
+                                  variances=c("year", "camp", "yearcamp", "id", "units"),
+                                  dist_var=pi^2 / 3,
+                                  padding=3)
+#R markdown table
+st_laying_window<-xl_2_df(xltab=Cheating_SItablesXL,sheet="Suppl. Table 8")
+st_laying_window <- format_table(st_laying_window)
+#
+#**Extended Data Table 9:*
+summary(m_aggression_int_c1)
+st_aggression_model <- model_combine(M = m_aggression_main_c1, I2 = m_aggression_int_c1)
+#Excel table
+Cheating_SItablesXL <- 
+  MCMCglmmProc(model = st_aggression_model, start_row = 1, workbook = Cheating_SItablesXL, create_sheet = "yes",
+               sheet = "Suppl. Table 9",
+               title = "**Extended Data Table 9**: Cooperator aggression.",
+               fixed_names=c("Aggression towards cheats", "Aggression towards cooperators",
+                             "ZObservation time", "ZNumber of potential victims", "ZNumber of females",
+                             "Aggression towards cooperators : ZNumber of females"), 
+               fixed_diffinc = c("Aggression towards cheats vs Aggression towards cooperators"),
+               Include_random = "yes",
+               randomvar_names = c("Year", "Camp", "Group", "Residual"),
+               variances = c("year", "camp", "yearcamp", "units"),
+               dist_var=poisson_dist_var(st_aggression_model),
+               padding = 3)
+#R markdown table
+st_aggression <- xl_2_df(xltab = Cheating_SItablesXL, sheet = "Suppl. Table 9")
+st_aggression <- format_table(st_aggression)
+#
+#**Extended Data Table 10:*
+summary(m_incubation_group_int_c1)
+st_incubation_group_model <- model_combine(M = m_incubation_group_main_c1, I2 = m_incubation_group_int_c1)
+#Excel table
+Cheating_SItablesXL <- 
+  MCMCglmmProc(model = st_incubation_group_model, start_row = 1, workbook = Cheating_SItablesXL, create_sheet = "yes",
+               sheet = "Suppl. Table 10",
+               title = "**Extended Data Table 10**: Effect group composition on group-level female incubation effort.",
+               fixed_names=c("Cheat in camp - No", "Cheat in camp - Yes",
+                             "Cheat in camp - No : ZNumber of cooperators", "Cheat in camp - Yes : ZNumber of cooperators",
+                             "Cheat in camp - No : ZNumber of other", "Cheat in camp - Yes : ZNumber of other"), 
+               fixed_diffinc = c("Cheat in camp - No vs Cheat in camp - Yes",
+                                 "Cheat in camp - No : ZNumber of cooperators vs Cheat in camp - Yes : ZNumber of cooperators",
+                                 "Cheat in camp - No : ZNumber of other vs Cheat in camp - Yes : ZNumber of other"),
+               Include_random = "yes",
+               randomvar_names = c("Year", "Camp", "Residual"),
+               variances = c("year", "camp", "units"),
+               dist_var=pi^2 / 3,
+               padding = 3)
+#R markdown table
+st_incubation_group <- xl_2_df(xltab = Cheating_SItablesXL, sheet = "Suppl. Table 10")
+st_incubation_group <- format_table(st_incubation_group)
+#
+#**Extended Data Table 11:*
+summary(m_incubation_time_quad_c1)
+st_incubation_time_model <- model_combine2(M=m_incubation_time_main_c1, I2=m_incubation_time_int_c1, I3=m_incubation_time_quad_c1)
+#Excel table
+Cheating_SItablesXL<-MCMCglmmProc(model=st_incubation_time_model,start_row=1,workbook=NULL,create_sheet="yes",
+                                  sheet="Suppl. Table 11",
+                                  title="**Extended Data Table 11**: Group-level incubation effort across time.",
+                                  fixed_names=c("Cheats in camp - No", "Cheats in camp - Yes",
+                                                "ZNumber of cooperators", "ZNumber of other", "ZDays",
+                                                "Cheats in camp - Yes : ZDays", "ZnoCoops : ZDays",
+                                                "Cheats in camp - No : ZDays^2", "Cheats in camp - Yes : ZDays^2",
+                                                "ZnoCoops : ZDays^2"),
+                                  fixed_diffinc = c("Cheats in camp - No vs Cheats in camp - Yes",
+                                                    "Cheats in camp - No : ZDays^2 vs Cheats in camp - Yes : ZDays^2"),
+                                  Include_random = "yes",
+                                  randomvar_names=c("Year", "Camp", "Group", "Residual"),
+                                  variances=c("year", "camp", "yearcamp", "units"),
+                                  dist_var=pi^2 / 3,
+                                  padding=3)
+#R markdown table
+st_incubation_time<-xl_2_df(xltab=Cheating_SItablesXL,sheet="Suppl. Table 11")
+st_incubation_time <- format_table(st_incubation_time)
+#
+#**Extended Data Table 12:*
+summary(m_incubation_individual_int3_c1)
+st_incubation_individual_model <- model_combine2(M=m_incubation_individual_main_c1, I2 = m_incubation_individual_int_c1, I3= m_incubation_individual_int3_c1)
+#Excel table
+Cheating_SItablesXL <- 
+  MCMCglmmProc(model = st_incubation_individual_model, start_row = 1, workbook = Cheating_SItablesXL, create_sheet = "yes",
+               sheet = "Suppl. Table 12",
+               title = "**Extended Data Table 12**: Effect of group composition and individual reprouctive investment on individual investment in incubation.",
+               fixed_names=c("Cheat in camp - No", "Cheat in camp - Yes",
+                             "Cheat in camp - No : sqrt(Relative RS)", "Cheat in camp - Yes : sqrt(Relative RS)",
+                             "Cheat in camp - No : ZNumber of cooperators", "Cheat in camp - Yes : ZNumber of cooperators",
+                             "Cheat in camp - No : ZNumber of other", "Cheat in camp - Yes : ZNumber of other",
+                             "Cheat in camp - No : sqrt(Relative RS) : ZNumber of cooperators",
+                             "Cheat in camp - Yes : sqrt(Relative RS) : ZNumber of cooperators"), 
+               fixed_diffinc = c("Cheat in camp - No vs Cheat in camp - Yes",
+                                 "Cheat in camp - No : sqrt(Relative RS) vs Cheat in camp - Yes : sqrt(Relative RS)",
+                                 "Cheat in camp - No : ZNumber of cooperators vs Cheat in camp - Yes : ZNumber of cooperators",
+                                 "Cheat in camp - No : ZNumber of other vs Cheat in camp - Yes : ZNumber of other",
+                                 "Cheat in camp - No : sqrt(Relative RS) : ZNumber of cooperators vs Cheat in camp - Yes : sqrt(Relative RS) : ZNumber of cooperators"),
+               Include_random = "yes",
+               randomvar_names = c("Year", "Camp", "Group", "Individual", "Residual"),
+               variances = c("year", "camp", "yearcamp", "id", "units"),
+               dist_var=pi^2 / 3,
+               padding = 3)
+#R markdown table
+st_incubation_individual <- xl_2_df(xltab = Cheating_SItablesXL, sheet = "Suppl. Table 12")
+st_incubation_individual <- format_table(st_incubation_individual)
+#
+#**Extended Data Table 13:*
+#Hatching success is modelled in two parts (Model 11). Extended Data Table 13 is the probability that a nest hatched
+#no eggs at all; Extended Data Table 13 is the proportion of eggs hatching among nests that hatched at least one.
+summary(m_nest_failure_int_c1)
+st_nest_failure_model <- model_combine(M = m_nest_failure_main_c1, I2 = m_nest_failure_int_c1)
+#Excel table
+Cheating_SItablesXL <- 
+  MCMCglmmProc(model = st_nest_failure_model, start_row = 1, workbook = NULL, create_sheet = "yes",
+               sheet = "Suppl. Table 13 nest failure",
+               title = "**Extended Data Table 13** (whether a nest hatched any eggs): Effect of the presence of cheats and group composition on whether a nest hatched any eggs. The response is whether a group hatched none of its eggs.",
+               fixed_names=c("Cheat in camp - No", "Cheat in camp - Yes", "ZNumber of other",
+                             "Cheat in camp - No : ZNumber of cooperators",
+                             "Cheat in camp - Yes : ZNumber of cooperators"),
+               fixed_diffinc = c("Cheat in camp - No vs Cheat in camp - Yes",
+                                 "Cheat in camp - No : ZNumber of cooperators vs Cheat in camp - Yes : ZNumber of cooperators"),
+               Include_random = "yes",
+               randomvar_names = c("Year", "Camp", "Residual"),
+               variances = c("year", "camp", "units"),
+               dist_var=pi^2 / 3,
+               padding = 3)
+#R markdown table
+st_nest_failure <- xl_2_df(xltab = Cheating_SItablesXL, sheet = "Suppl. Table 13 nest failure")
+st_nest_failure <- format_table(st_nest_failure)
+#
+#**Extended Data Table 13:*
+summary(m_hatch_success_int_c1)
+st_hatch_success_model <- model_combine(M = m_hatch_success_main_c1, I2 = m_hatch_success_int_c1)
+#Excel table
+Cheating_SItablesXL <- 
+  MCMCglmmProc(model = st_hatch_success_model, start_row = 1, workbook = Cheating_SItablesXL, create_sheet = "yes",
+               sheet = "Suppl. Table 13 hatching",
+               title = "**Extended Data Table 13** (hatching success of nests that hatched): Effect of the presence of cheats and group composition on hatching success, among nests that hatched at least one egg.",
+               fixed_names=c("Cheat in camp - No", "Cheat in camp - Yes", "ZNumber of other",
+                             "Cheat in camp - No : ZNumber of cooperators",
+                             "Cheat in camp - Yes : ZNumber of cooperators"),
+               fixed_diffinc = c("Cheat in camp - No vs Cheat in camp - Yes",
+                                 "Cheat in camp - No : ZNumber of cooperators vs Cheat in camp - Yes : ZNumber of cooperators"),
+               Include_random = "yes",
+               randomvar_names = c("Year", "Camp", "Residual"),
+               variances = c("year", "camp", "units"),
+               dist_var=pi^2 / 3,
+               padding = 3)
+#R markdown table
+st_hatch_success <- xl_2_df(xltab = Cheating_SItablesXL, sheet = "Suppl. Table 13 hatching")
+st_hatch_success <- format_table(st_hatch_success)
+#
+```
+
+```{r, echo=F, warning=FALSE,include=FALSE}
+save.image(here::here("R_Output_files/Cheating_SInformation.RData"), compress = "xz")
+```
+
+## Extended Data Figures
+
+```{r Figure theme, include=F}
+t1 <- theme(strip.background=element_rect(fill="white"),text = element_text(size=12),title =element_text(size=12),axis.text.y = element_text(size=12,colour="black"),axis.text.x = element_text(size=12,colour="black"),legend.title = element_text(size=12,colour="black"),legend.text = element_text(size = 10),legend.position="top",legend.justification = "top",panel.grid.major = element_blank(), panel.grid.minor=element_blank(),panel.background=element_rect(colour="black",linetype = 1,fill = "white"))
+#
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap = paste0("**Extended Data Figure 1: The reproductive investment of individuals that cheated in some years and cooperated in others**. Relative number of eggs females produced when they cheated (orange) and when they cooperated (green). Number of eggs is relative to mean number of eggs produced by females during the same year. Bigger points and error bars show means +/- one standard errors per breeding strategy. Smaller points show mean per individual and breeding strategy, and lines connect data belonging to the same individual.", " Sample size: n = ", nrow(df_eggs_within_female), " observations from ", length(unique(df_eggs_within_female$id)), " females."), fig.height = 6, fig.width = 9, dpi = 600, align = "center"}
+#Compute data
+Fig2_data = df_eggs_within_female |> group_by(id,BS) |> dplyr::summarise(relativeRSInc4 = mean(relativeRSInc4,na.rm=T))
+#
+ggplot(Fig2_data, aes(x = BS, y = relativeRSInc4)) + 
+  stat_summary(fun.data = mean_se, geom = "errorbar",
+               width = 0.05, linewidth = 0.8) +
+  stat_summary(aes(fill = BS), fun = mean, geom = "point",
+               shape = 21, size = 5, stroke = 0.8) +
+  geom_path(aes(group = id), linewidth = 0.4, alpha = 0.5, position = position_jitter(height = 0, width = 0.1, seed = 3922)) + 
+  geom_point(aes(fill = BS), size = 3, shape = 21, alpha = 0.25, stroke = 0.6, position = position_jitter(height = 0, width = 0.1, seed = 3922)) +
+  ylab("Mean relative no. eggs") +
+  xlab("") +
+    scale_fill_manual(values= c("Cooperator" = "#009E73", "Cheat" = "#E69F00"),name="")+
+  t1 + theme(legend.position = "none", axis.title.y = element_text(size = 14))
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap = paste0("**Extended Data Figure 2: The number of eggs laid by each breeding strategy in relation to the number of cooperators in the group**. The number of eggs laid by cheats (orange), cooperators in groups without cheats (green) and cooperators in groups with cheats (grey). The number of eggs laid was modelled as a count with year as a random effect, and fitted values are shown relative to the annual mean so that they are comparable with the observed data, which are also expressed relative to the annual mean. Circles and error bars show the mean +/- one standard error, solid lines show fitted values from the Bayesian mixed model (Extended Data Table 5), and shaded ribbons show 95% credible intervals. The differences between these fitted curves are shown in Fig. 2A.", " Sample size: n = ", nrow(df_eggs), " observations from ", length(unique(df_eggs$id)), " females in ", length(unique(df_eggs$yearcamp)), " groups."), fig.height = 6, fig.width = 9, dpi = 600, align = "center"}
+#Fitted number of eggs from Model m_eggs_quad_c1 (Poisson, log link), for each breeding strategy across the
+#number of cooperators. The log link is non-linear, so fitted counts are averaged over the random-effect
+#distribution, taken at the midpoints of 40 equal-probability slices of a normal. The year variance is
+#left out of that average and the fitted values are divided by the overall fitted value: dividing a count
+#by its annual mean removes the year effect exactly under a log link, so this puts the fit on the same
+#"eggs relative to the annual mean" axis as the observed data. Covariates not shown on the axis are held
+#at the mean observed within each strategy, so each line matches the groups it summarises.
+BSlabels <- c("Cheat" = "Cheats", "Coop_w/o_Cheat" = "Cooperators, no cheat", "Coop_w_Cheat" = "Cooperators, cheat")
+coop2_mean <- mean(df_eggs$noFCoopsCamp)
+coop2_sd   <- sd(df_eggs$noFCoopsCamp)
+REnodes_eggs <- qnorm(seq(0.5/40, 1 - 0.5/40, length.out = 40))
+V_eggs       <- rowSums(m_eggs_quad_c1$VCV[, colnames(m_eggs_quad_c1$VCV) != "year"])
+fitted_eggs <- function(strategy, x, zOther, broken){
+  z <- (x - coop2_mean) / coop2_sd
+  eta <- m_eggs_quad_c1$Sol[, paste0("BS_2", strategy)] +
+         m_eggs_quad_c1$Sol[, paste0("BS_2", strategy, ":ZnoFCoops")]  * z +
+         m_eggs_quad_c1$Sol[, paste0("BS_2", strategy, ":ZnoFCoops2")] * z^2 +
+         m_eggs_quad_c1$Sol[, "logit_prop.BrokenInc"] * broken +
+         m_eggs_quad_c1$Sol[, "ZnoFOther"] * zOther
+  rowMeans(sapply(REnodes_eggs, function(u) exp(eta + sqrt(V_eggs) * u)))
+}
+ref_eggs <- rowMeans(sapply(seq_len(nrow(df_eggs)), function(i)
+  fitted_eggs(as.character(df_eggs$BS_2[i]), df_eggs$noFCoopsCamp[i],
+             mean(df_eggs$ZnoFOther[df_eggs$BS_2 == df_eggs$BS_2[i]]),
+             mean(df_eggs$logit_prop.BrokenInc[df_eggs$BS_2 == df_eggs$BS_2[i]]))))
+df_eggs_fit <- do.call(rbind, lapply(c("Cheat", "Coop_w/o_Cheat", "Coop_w_Cheat"), function(s){
+  zOther <- mean(df_eggs$ZnoFOther[df_eggs$BS_2 == s])
+  broken <- mean(df_eggs$logit_prop.BrokenInc[df_eggs$BS_2 == s])
+  do.call(rbind, lapply(seq(1, 5, by = 0.05), function(x){
+    pred <- fitted_eggs(s, x, zOther, broken) / ref_eggs
+    data.frame(BS_2 = s, noFCoopsCamp = x,
+               mean = median(pred), lcl = quantile(pred, 0.025), ucl = quantile(pred, 0.975))
+  }))
+}))
+#Observed means per strategy and group size
+df_eggs_all_summary <- df_eggs_all %>%  dplyr::filter(noFCoopsCamp != 0, noFCoopsCamp != 6) %>%
+  group_by(noFCoopsCamp, BS_2) %>%
+  dplyr::summarise(n = n(), mean = mean(relativeRSInc4, na.rm = TRUE),
+                   lcl = mean(relativeRSInc4, na.rm = TRUE) - (sd(relativeRSInc4)/sqrt(n())),
+                   ucl = mean(relativeRSInc4, na.rm = TRUE) + (sd(relativeRSInc4)/sqrt(n())), .groups = "drop")
+#
+ggplot() +
+  geom_ribbon(data = df_eggs_fit, aes(x = noFCoopsCamp, ymin = lcl, ymax = ucl, fill = BS_2),
+              alpha = 0.2, colour = NA) +
+  geom_line(data = df_eggs_fit, aes(x = noFCoopsCamp, y = mean, colour = BS_2), linewidth = 1) +
+  geom_pointrange(data = df_eggs_all_summary,
+                  aes(x = noFCoopsCamp, y = mean, ymin = lcl, ymax = ucl, fill = BS_2),
+                  fatten = 7, size = 0.5, shape = 21, alpha = 0.6,
+                  position = position_dodge(width = 0.5), colour = "black") +
+  scale_x_continuous(breaks = 1:5) +
+  labs(x = "No. of cooperators in group", y = "Mean relative no. eggs\nper individual",
+       colour = "Breeding strategy", fill = "Breeding strategy") +
+  guides(colour = "none") +
+  scale_color_manual(values = c("Cheat" = "#E69F00", "Coop_w/o_Cheat" = "#009E73", "Coop_w_Cheat" = "#999999"), labels = BSlabels) +
+  scale_fill_manual(values = c("Cheat" = "#E69F00", "Coop_w/o_Cheat" = "#009E73", "Coop_w_Cheat" = "#999999"), labels = BSlabels) +
+  t1 + theme(legend.position = "top", axis.title.x = element_text(size = 14), axis.title.y = element_text(size = 14))
+```
+
+```{r Aggression_figure, echo=FALSE, warning=FALSE, fig.cap = paste0("**Extended Data Figure 3: Group-level cooperator aggression.** Number of aggressive interactions where the aggressor was a cooperator, corrected by number of potential victims: the number of aggressive interactions in a group was divided by the number of cheats in the group when the victims were cheats, and by the number of cooperators minus one when the victims were other cooperators. Bigger points and error bars show mean +/- one standard error. Smaller points show raw data. Lines connect data points from the same breeding group.", " Sample size: n = ", length(unique(df_aggression$yearcamp)), " groups."), fig.height = 6, fig.width = 9, dpi = 600, align = "center"}
+ggplot(df_aggression, aes(x = BSvic, y = no.ints/noBSvic)) + 
+  stat_summary(fun.data = mean_se, geom = "errorbar",
+               width = 0.05, linewidth = 0.8) +
+  stat_summary(aes(fill = BSvic), fun = mean, geom = "point",
+               shape = 21, size = 5, stroke = 0.8)+
+  geom_path(aes(group = yearcamp), linewidth = 0.4, alpha = 0.5, position = position_jitter(height = 0, width = 0.1, seed = 3922)) + 
+  geom_point(aes(fill = BSvic), size = 3, shape = 21, alpha = 0.25, stroke = 0.6, position = position_jitter(height = 0, width = 0.1, seed = 3922)) +
+  ylab("Aggression interactions\nper potential victim") +
+  xlab("Breeding strategy of victim") +
+    scale_fill_manual(values= c("Cooperator" = "#009E73", "Cheat" = "#E69F00"),name="")+
+  t1 + theme(legend.position = "none", axis.title.y = element_text(size = 14), axis.title.x = element_text(size = 14))
+```
+
+\newpage
+
+## Extended Data Tables  
+
+```{r, echo=F, warning=F}
+#Create Extended Data Table 1
+si_table(st_strategy_counts, "Extended Data Table 1. Effect of group size on the number of cooperators and cheats per group, analysed using a Poisson generalized linear mixed-effects model. Group size includes all females, including non-breeders.")
+```
+
+\newpage
+
+```{r, echo=F, warning=F}
+#Create Extended Data Table 2
+si_table(st_cheat_prop, "Extended Data Table 2. Effects of the numbers of cooperators and non-breeding females on the proportion of cheats among breeding females per group, analysed using a binomial mixed-effects model.")
+```
+
+\newpage
+
+```{r, echo=F, warning=F}
+#Create Extended Data Table 3
+si_table(st_cheat_prob, "Extended Data Table 3. Effects of the numbers of cooperators and non-breeding females, age, and initial body mass on a female’s annual probability of being a cheat, analysed using a Bernoulli mixed-effects model with a probit link. Counts exclude the focal female. Initial body mass (kg) was measured at the start of the breeding season.")
+```
+
+\newpage
+
+```{r, echo=F, warning=F}
+#Create Extended Data Table 4
+si_table(st_mass, "Extended Data Table 4. Effects of breeding strategy and group composition on female body mass at the end of incubation, analysed using a Gaussian mixed-effects model with body mass at the start of the breeding season as a covariate.")
+```
+
+\newpage
+
+```{r, echo=F, warning=F}
+#Create Extended Data Table 5. The two analyses are the same model fitted to all
+#groups and to groups with more than one cooperator, so they are shown side by
+#side. The restricted fit has no fitted-value comparisons, which is why those
+#rows are blank in its columns.
+st_eggs_panels <- cbind(st_eggs,
+                        st_eggs_excl_1coop[match(trimws(st_eggs[[1]]),
+                                                 trimws(st_eggs_excl_1coop[[1]])), 2:3])
+st_eggs_panels[is.na(st_eggs_panels)] <- ""
+names(st_eggs_panels) <- c("Fixed Effects", "Posterior Mode (CI)", "pMCMC",
+                           "Posterior Mode (CI)", "pMCMC")
+#match() leaves NA row names behind, which kbl would render as a sixth column
+rownames(st_eggs_panels) <- NULL
+
+si_table(st_eggs_panels, "Extended Data Table 5. Effect of group composition on reproductive investment, for all groups and excluding groups with a single female cooperator. The response variable is the number of eggs produced by every female during a given year, with year fitted as a random effect to account for year-to-year differences in the number of eggs laid. The right-hand columns repeat the analysis without groups containing one cooperator, to test whether those groups drive the effect. Fixed effect comparisons: fitted values give the differences between the fitted curves shown in Fig. 2A, evaluated at each number of cooperators with all other covariates held at their overall mean; each comparison is the first strategy named minus the second, so positive values indicate that the first laid more eggs. These are the three comparisons plotted in Fig. 2A. Only one female contributed to the fitted value for cooperators in groups without cheats when there was one cooperator in the group, so this comparison should be interpreted with caution.",
+         panel_labels = c("", "All groups", "Excluding groups with one cooperator"))
+```
+
+
+```{r, echo=F, warning=F}
+#Create Extended Data Table 6
+si_table(st_eggs_within_female, "Extended Data Table 6. Effects of breeding strategy, group size, and age on the estimated number of eggs produced per female per year, analysed using a Poisson mixed-effects model. Only females that cheated in some years and cooperated in others were included. Year was fitted as a random effect to account for annual variation in egg production.")
+```
+
+\newpage
+
+```{r, echo=F, warning=F}
+#Create Extended Data Table 7
+si_table(st_laying_group, "Extended Data Table 7. Effects of cheating, group composition, and time on the cumulative proportion of eggs laid per nest, analysed using a binomial mixed-effects model with a logit link. Interactions between cheat presence and linear and quadratic time terms (days) tested differences in laying patterns. The analysis included the first 32 days from the start of the incubation period.")
+```
+
+\newpage
+
+```{r, echo=F, warning=F}
+#Create Extended Data Table 8
+si_table(st_laying_window, "Extended Data Table 8. Effects of breeding strategy, group size, and time on the probability of a female laying an egg within a two-day window, analysed using a binomial mixed-effects model. ZWindow denotes window position within the laying period. Interactions between breeding strategy and its linear and quadratic terms tested differences in laying patterns between cheats and cooperators.")
+```
+
+\newpage
+
+```{r, echo=F, warning=F}
+#Create Extended Data Table 9
+si_table(st_aggression, "Extended Data Table 9. Effects of victim breeding strategy and group size on the number of aggressive interactions initiated by cooperators towards cheats or other cooperators, analysed at group level using a Poisson mixed-effects model accounting for observation time and the number of potential victims. Groups with only one cooperator were excluded.")
+```
+
+\newpage
+
+```{r, echo=F, warning=F}
+#Create Extended Data Table 10
+si_table(st_incubation_group, "Extended Data Table 10. Effects of cheating and group composition on the proportion of time nests were incubated, analysed using a binomial mixed-effects model with a logit link. Interactions tested whether the effects of the number of cooperators and the number of non-breeding females on incubation effort differed between groups with and without cheats.")
+```
+
+\newpage
+
+```{r, echo=F, warning=F}
+#Create Extended Data Table 11
+si_table(st_incubation_time, "Extended Data Table 11. Effects of cheat presence, group composition, and time (days) on the daily proportion of time groups spent incubating, analysed using a binomial mixed-effects model with a logit link. Interactions between cheat presence and linear and quadratic time terms tested whether incubation patterns differed between groups with and without cheats. The analysis included the first 32 days from the onset of incubation.")
+```
+
+\newpage
+
+```{r, echo=F, warning=F}
+#Create Extended Data Table 12
+si_table(st_incubation_individual, "Extended Data Table 12. Effects of cheating, group composition, and relative reproductive investment on the proportion of time individual females spent incubating, analysed using a binomial mixed-effects model with a logit link. Relative reproductive investment was the annual number of eggs produced per female, corrected for the annual mean. Interactions tested whether the effects of reproductive investment, the number of cooperators, and the number of non-breeding females on incubation effort differed between groups with and without cheats. A three-way interaction further tested whether the effect of reproductive investment differed between groups with and without cheats depending on the number of cooperators.")
+```
+
+\newpage
+
+```{r, echo=F, warning=F}
+#Create Extended Data Table 13. The two parts of the hurdle model carry the same
+#terms, so they are shown side by side rather than as separate tables.
+st_hatching_panels <- cbind(st_nest_failure, st_hatch_success[, 2:3])
+names(st_hatching_panels) <- c("Fixed Effects", "Posterior Mode (CI)", "pMCMC",
+                               "Posterior Mode (CI)", "pMCMC")
+rownames(st_hatching_panels) <- NULL
+
+si_table(st_hatching_panels, "Extended Data Table 13. Effects of cheating and group composition on hatching success, analysed using two binomial mixed-effects models with logit links: (1) the probability of complete nest failure (no eggs hatched) and (2) the proportion of eggs that hatched among nests where at least one egg hatched. Interactions tested whether the effect of the number of cooperators differed between groups with and without cheats.",
+         panel_labels = c("", "Probability of nest failure", "Hatching success of nests that hatched"),
+         footnote = paste("The negative posterior mode for the year variance (−0.03) in the nest-failure model is a boundary artifact of kernel density estimation and does not represent a negative model variance."))
+```
+
+\newpage
+
+```{r, echo=FALSE}
+# Table 14
+# Helper functions -----
+
+extract_seg_params <- function(seg_fit, blank_pvals_for = c("U", "G0")) {
+  tt <- summary(seg_fit$lme.fit)$tTable
+  ci <- t(confint(seg_fit))
+  params <- rownames(tt)
+
+  out <- data.frame(
+    Parameter = params,
+    Estimate  = as.numeric(tt[, "Value"]),
+    SE        = as.numeric(tt[, "Std.Error"]),
+    CI_low    = as.numeric(ci[params, "2.5%"]),
+    CI_high   = as.numeric(ci[params, "97.5%"]),
+    df        = as.numeric(tt[, "DF"]),
+    t_value   = as.numeric(tt[, "t-value"]),
+    p_value   = as.numeric(tt[, "p-value"]),
+    stringsAsFactors = FALSE
+  )
+
+  # Omit ordinary coefficient tests for the breakpoint parameters.
+  omit_tests <- out$Parameter %in% blank_pvals_for
+  out[omit_tests, c("df", "t_value", "p_value")] <- NA_real_
+
+  rownames(out) <- NULL
+  out
+}
+
+# Pull every random-effect variance component present in the model.
+extract_seg_ranef <- function(seg_fit, group_name) {
+  vc <- as.data.frame(
+    unclass(VarCorr(seg_fit$lme.fit)),
+    stringsAsFactors = FALSE
+  )
+
+  data.frame(
+    Group = ifelse(rownames(vc) == "Residual", "Residual", group_name),
+    Term = rownames(vc),
+    Variance = as.numeric(vc$Variance),
+    SD = as.numeric(vc$StdDev),
+    stringsAsFactors = FALSE,
+    row.names = NULL
+  )
+}
+
+extract_seg_fitstats <- function(seg_fit, group_name) {
+  data.frame(
+    Statistic = c(
+      "AIC", "BIC", "logLik", "N observations",
+      paste0("N groups (", group_name, ")")
+    ),
+    Value = c(
+      AIC(seg_fit),
+      BIC(seg_fit),
+      as.numeric(logLik(seg_fit)),
+      seg_fit$lme.fit$dims$N,
+      unname(seg_fit$lme.fit$dims$ngrps[1])
+    ),
+    stringsAsFactors = FALSE
+  )
+}
+
+format_p <- function(p) {
+  ifelse(
+    is.na(p), "\u2013",
+    ifelse(p < 0.001, "< 0.001", sprintf("%.3f", p))
+  )
+}
+
+# Empty row with a label in the first column, used as a section header.
+make_section_header <- function(template, label) {
+  header <- template[1, , drop = FALSE]
+  header[] <- ""
+  header[[1]] <- label
+  header
+}
+
+# Build the table -----
+
+build_seg_table <- function(m_activity_nocheat, m_activity_cheat,
+                            group_name = "yearcamp", day_mean, day_sd) {
+
+  to_days <- function(z) day_mean + z * day_sd
+
+  tab_no  <- extract_seg_params(m_activity_nocheat)
+  tab_yes <- extract_seg_params(m_activity_cheat)
+
+  fixed_block <- full_join(
+    tab_no, tab_yes,
+    by = "Parameter",
+    suffix = c("_No", "_Yes")
+  ) %>%
+    transmute(
+      Row = Parameter,
+      `No-cheat: Estimate (SE)` =
+        sprintf("%.2f (%.2f)", Estimate_No, SE_No),
+      `No-cheat: 95% CI` =
+        sprintf("%.2f, %.2f", CI_low_No, CI_high_No),
+      `No-cheat: df` =
+        ifelse(is.na(df_No), "\u2013", sprintf("%.0f", df_No)),
+      `No-cheat: t` =
+        ifelse(is.na(t_value_No), "\u2013", sprintf("%.2f", t_value_No)),
+      `No-cheat: p` =
+        format_p(p_value_No),
+      `Yes-cheat: Estimate (SE)` =
+        sprintf("%.2f (%.2f)", Estimate_Yes, SE_Yes),
+      `Yes-cheat: 95% CI` =
+        sprintf("%.2f, %.2f", CI_low_Yes, CI_high_Yes),
+      `Yes-cheat: df` =
+        ifelse(is.na(df_Yes), "\u2013", sprintf("%.0f", df_Yes)),
+      `Yes-cheat: t` =
+        ifelse(is.na(t_value_Yes), "\u2013", sprintf("%.2f", t_value_Yes)),
+      `Yes-cheat: p` =
+        format_p(p_value_Yes)
+    )
+
+  # Back-transform the breakpoint and its CI from G0 to days.
+  g0_no  <- tab_no  %>% filter(Parameter == "G0")
+  g0_yes <- tab_yes %>% filter(Parameter == "G0")
+
+  breakpoint_block <- data.frame(
+    Row = "Breakpoint (days since incubation onset)",
+    `No-cheat: Estimate (SE)` =
+      sprintf("%.2f", to_days(g0_no$Estimate)),
+    `No-cheat: 95% CI` =
+      sprintf(
+        "%.2f, %.2f",
+        to_days(g0_no$CI_low),
+        to_days(g0_no$CI_high)
+      ),
+    `No-cheat: df` = "\u2013",
+    `No-cheat: t` = "\u2013",
+    `No-cheat: p` = "\u2013",
+    `Yes-cheat: Estimate (SE)` =
+      sprintf("%.2f", to_days(g0_yes$Estimate)),
+    `Yes-cheat: 95% CI` =
+      sprintf(
+        "%.2f, %.2f",
+        to_days(g0_yes$CI_low),
+        to_days(g0_yes$CI_high)
+      ),
+    `Yes-cheat: df` = "\u2013",
+    `Yes-cheat: t` = "\u2013",
+    `Yes-cheat: p` = "\u2013",
+    check.names = FALSE,
+    stringsAsFactors = FALSE
+  )
+
+  ranef_no  <- extract_seg_ranef(m_activity_nocheat, group_name)
+  ranef_yes <- extract_seg_ranef(m_activity_cheat, group_name)
+
+  ranef_block <- full_join(
+    ranef_no, ranef_yes,
+    by = c("Group", "Term"),
+    suffix = c("_No", "_Yes")
+  ) %>%
+    transmute(
+      Row = paste0(Group, " \u2013 ", Term),
+      `No-cheat: Estimate (SE)` =
+        sprintf("Var = %.2f, SD = %.2f", Variance_No, SD_No),
+      `No-cheat: 95% CI` = "\u2013",
+      `No-cheat: df` = "\u2013",
+      `No-cheat: t` = "\u2013",
+      `No-cheat: p` = "\u2013",
+      `Yes-cheat: Estimate (SE)` =
+        sprintf("Var = %.2f, SD = %.2f", Variance_Yes, SD_Yes),
+      `Yes-cheat: 95% CI` = "\u2013",
+      `Yes-cheat: df` = "\u2013",
+      `Yes-cheat: t` = "\u2013",
+      `Yes-cheat: p` = "\u2013"
+    )
+
+  list(
+    fixed = fixed_block,
+    breakpoint = breakpoint_block,
+    random = ranef_block,
+    n_fixed = nrow(fixed_block),
+    n_breakpoint = nrow(breakpoint_block),
+    n_random = nrow(ranef_block)
+  )
+}
+
+# Stack the blocks, with a labelled header row above each.
+add_section_headers <- function(tbl, blocks) {
+  bind_rows(
+    make_section_header(tbl$fixed, blocks[1]), tbl$fixed,
+    make_section_header(tbl$fixed, blocks[2]), tbl$breakpoint,
+    make_section_header(tbl$fixed, blocks[3]), tbl$random
+  )
+}
+
+# Convert breakpoint to days -----
+# Recover the original scaling constants from the exact linear relationship
+# between ZDay and raw day, rather than rescaling the analysis subset.
+day_map <- lm(
+  dayordereggsleft ~ z,
+  data = data.frame(
+    dayordereggsleft = df_activity_allocation$dayordereggsleft,
+    z = as.numeric(df_activity_allocation$ZDay)
+  )
+)
+
+day_mean <- unname(coef(day_map)[1])
+day_sd   <- unname(coef(day_map)[2])
+
+# Build and display the table -----
+
+tbl <- build_seg_table(
+  m_activity_nocheat,
+  m_activity_cheat,
+  group_name = "Group",
+  day_mean = day_mean,
+  day_sd = day_sd
+)
+
+blocks <- c(
+  "Fixed effects",
+  "Timing of transition (days)*",
+  "Random effects"
+)
+
+st_activity_display <- add_section_headers(tbl, blocks)
+
+si_table(
+  st_activity_display,
+  "Extended Data Table 14. Changes in activity allocation between egg-laying and incubation over time, analysed using segmented linear mixed-effects models fitted separately for groups with and without cheats. The response variable was a logit-transformed activity allocation index, ranging from 0 (entirely egg-laying) to 1 (entirely incubation) before transformation.",
+  sections = which(st_activity_display[[1]] %in% blocks),
+  footnote = sprintf(
+    paste(
+      "*ZDay = (day \u2212 day_mean) / day_sd, where day_mean = %.2f",
+      "and day_sd = %.2f days. The breakpoint back-transforms the G0",
+      "estimate and 95%% CI to days since incubation onset using this",
+      "relationship. df denotes denominator degrees of freedom for",
+      "the coefficient t tests. Test statistics, degrees of freedom",
+      "and P values are omitted for U and G0."
+    ),
+    day_mean, day_sd
+  )
+)
+
+```
+
+```{r Export Extended Data tables, echo=FALSE, message=FALSE, warning=FALSE}
+#Write the Extended Data tables out as a spreadsheet, matching the rounding used in the document.
+#A fresh workbook is built here rather than reusing Cheating_SItablesXL: that object is passed
+#workbook = NULL at Extended Data Table 7, st_incubation_time and st_nest_failure, which starts a new workbook each time, so it never holds
+#all of the sheets. Extended Data Table 14 is built with kable() rather than MCMCglmmProc and is added at the end.
+#Extended Data Tables 5 and 13 are two-panel tables in the document, so each
+#panel gets its own sheet here. Sheet names are capped at 31 characters by Excel.
+si_tables <- list("Suppl. Table 1"  = st_strategy_counts,
+                  "Suppl. Table 2"  = st_cheat_prop,
+                  "Suppl. Table 3"  = st_cheat_prob,
+                  "Suppl. Table 4"  = st_mass,
+                  "Suppl. Table 5 all groups"    = st_eggs,
+                  "Suppl. Table 5 excl. 1 coop"  = st_eggs_excl_1coop,
+                  "Suppl. Table 6"  = st_eggs_within_female,
+                  "Suppl. Table 7"  = st_laying_group,
+                  "Suppl. Table 8"  = st_laying_window,
+                  "Suppl. Table 9"  = st_aggression,
+                  "Suppl. Table 10" = st_incubation_group,
+                  "Suppl. Table 11" = st_incubation_time,
+                  "Suppl. Table 12" = st_incubation_individual,
+                  "Suppl. Table 13 nest failure" = st_nest_failure,
+                  "Suppl. Table 13 hatching"     = st_hatch_success,
+                  "Suppl. Table 14" = st_activity_display)
+si_workbook  <- createWorkbook()
+header_style <- createStyle(halign = "LEFT", border = "TopBottom", textDecoration = "bold")
+bold_style   <- createStyle(textDecoration = "bold")
+for (sheet_name in names(si_tables)) {
+  tab <- si_tables[[sheet_name]]
+  addWorksheet(si_workbook, sheet_name)
+  writeData(si_workbook, sheet_name, tab, startCol = 1, startRow = 1, headerStyle = header_style)
+  #pMCMC values below 0.05 are bolded directly, as the values are text rather than numbers
+  if (ncol(tab) >= 3) {
+    pvals <- suppressWarnings(as.numeric(tab[[3]]))
+    signif_rows <- which(!is.na(pvals) & pvals < 0.05)
+    if (length(signif_rows) > 0) {
+      addStyle(si_workbook, sheet_name, bold_style, rows = signif_rows + 1, cols = 3,
+               gridExpand = TRUE, stack = TRUE)
+    }
+  }
+  setColWidths(si_workbook, sheet_name, cols = 1:ncol(tab), widths = "auto")
+}
+saveWorkbook(si_workbook,
+             file = here("Scripts/Manuscripts/Frequency_dependent_cheating_SupplementaryTables.xlsx"),
+             overwrite = TRUE)
+```
+
+```{r, echo=F, warning=FALSE,include=FALSE}
+save.image(here::here("R_Output_files/Cheating_SInformation.RData"), compress = "xz")
+```

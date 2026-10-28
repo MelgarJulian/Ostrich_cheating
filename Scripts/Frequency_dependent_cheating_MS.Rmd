@@ -1,0 +1,930 @@
+---
+output:
+  word_document:
+    fig_height: 6
+    reference_docx: ../MSstyle.docx
+  html_document:
+    df_print: paged
+  pdf_document: default
+bibliography: ../references_corrected.bib
+csl: ../reference_format.csl
+editor_options: 
+  chunk_output_type: console
+knit: (function(inputFile, encoding) {rmarkdown::render(inputFile,
+      encoding = encoding,
+      output_dir = file.path(dirname(inputFile), "Manuscripts"),
+      output_file = paste0(tools::file_path_sans_ext(basename(inputFile)), "_", Sys.Date(), ".docx"))})
+---
+
+```{r, echo=F}
+#Load packages
+pacman::p_load(tidyverse,boot, doBy, RVAideMemoire, tidyverse, psych, excelR, ggplot2, grid, gridExtra, ggpubr, dplyr, knitr, kableExtra, tinytex, formattable, openxlsx, qwraps2, arsenal,RColorBrewer, english, Rmisc, cowplot, png, betareg, here, magick, ggbeeswarm, segmented, MCMCglmm)
+#Load data
+load(here("R_Output_files/Cheating_SInformation.RData"))
+#
+#Bibliography fix
+bib = readLines(here("references.bib"),
+  warn = FALSE,
+  encoding = "UTF-8")
+
+bib = gsub("de Villemereuil, Pierre",
+  "{de Villemereuil}, Pierre",
+  bib,
+  fixed = TRUE)
+
+writeLines(bib,
+  here("references_corrected.bib"),
+  useBytes = TRUE)
+```
+
+# Frequency-dependent cheating in a cooperatively breeding bird
+
+ 
+
+Julian Melgar^1,\*^, Mads F. Schou^2^, Maud Bonato^3^, Zanell Brand^4^, Anel Engelbrecht^4^, Schalk Cloete^5^, Pfunzo T. Muvhali^4,5^, Bengt Hansson^1^, Anna Danielsson^6^, Mikael Åkesson^6^ & Charlie K. Cornwallis^1,\*^
+
+ 
+
+^1^Department of Biology, Lund University, Lund, Sweden. ^2^Department of Biology, Aarhus University, Aarhus C, Denmark. ^3^Department of Biological Sciences, University of Venda, Thohoyandou, South Africa. ^4^Directorate Animal Sciences, Western Cape Department of Agriculture, Elsenburg, South Africa. ^5^Department of Animal Sciences, Stellenbosch University, Matieland, South Africa. ^6^Department of Ecology, Grimsö Wildlife Research Station, Swedish University of Agricultural Sciences, Riddarhyttan, Sweden.\
+^*^e-mail: [julian.melgar\@outlook.com](mailto:julian.melgar@outlook.com){.email}; [charlie.cornwallis\@biol.lu.se](mailto:charlie.cornwallis@biol.lu.se){.email}
+
+ 
+
+## **Abstract**
+
+Cooperation has profoundly influenced life on earth across all levels of organisation, from genomes to animal societies[@maynardsmithMajorTransitionsEvolution1995; @bourkePrinciplesSocialEvolution2011]. Cooperative systems are, however, continually challenged by cheating, where individuals reap the benefits of cooperation without bearing its costs[@wadeEvolutionCheatingSelfish1980; @michodCooperationConflictEvolutionary2006; @ghoulEvolutionaryDefinitionCheating2014]. Despite this critical challenge to the evolution of cooperation, the conditions under which cheating persists without causing cooperative groups to collapse, remain poorly understood outside microbial systems[@west2021a]. Here we address this in the ostrich, *Struthio camelus*, which breeds in groups that share incubation of a communal nest, in which some females lay eggs but never incubate ("cheats")[@bertram1979]. We identified the conditions under which cheating arose, and when it was associated with the collapse of cooperative groups, across 80 experimentally established breeding groups monitored over seven years. Cheating was conditional: 23 of 26 females that cheated in a breeding season, cooperated in another. Cheats maximized their reproductive benefits in larger groups, where their frequency was lowest relative to cooperators. In small groups, the relative frequency of cheats was higher, and cheating led to nest failure because cooperators reduced their incubation effort. These findings demonstrate that the persistence of cheats is driven by frequency-dependent benefits and costs of cheating. These results parallel work on microbial public goods[@patel2019; @ross-gillespie2007b], suggesting that frequency-dependent cheating may be a general feature of social evolution, present in organisms as different as bacteria and birds.
+
+ 
+
+## **Introduction**
+
+Cheating is a ubiquitous threat to the stability of cooperative groups. It arises when individuals reap the rewards of cooperation while avoiding its costs, which can cause cooperation to collapse[@wadeEvolutionCheatingSelfish1980; @michodCooperationConflictEvolutionary2006; @ghoulEvolutionaryDefinitionCheating2014]. Selection against cheating has favoured an elaborate range of adaptations, from the silencing of selfish genetic elements, to worker policing of reproduction in eusocial insects[@hardin1968a; @rankinTragedyCommonsEvolutionary2007; @ratnieksWorkerPolicingHoneybee1989; @reeveSocialContractsWasp1992; @mulderDominantMalesPunish1993; @foster2000; @fosterConvergentEvolutionWorker2001; @travisanoStrategiesMicrobialCheater2004; @fischer2014a, but see @riehlCheatingPunishmentCooperative2016].
+
+Despite the omnipresent and destructive force of cheating, the conditions where it persists remain poorly understood[@west2021a]. In W. D. Hamilton's foundational model of social evolution, the fitness effects of social behaviour are additive[@hamilton1964a]. Under these conditions, the selective advantage of cheating does not depend on the frequency of cooperators in the population[@queller1984a; @queller1985a]. Consequently, cheating is either never favoured or, if favoured, it spreads until cooperation disappears, leaving no opportunities to cheat. Cheats and cooperators should therefore not coexist. Yet cheating occurs in a wide range of cooperative systems[@riehlCheatingPunishmentCooperative2016; @west2021a].
+
+A possible explanation for the widespread occurrence of cheating is that, contrary to Hamilton’s original model, its payoffs can depend on the frequency of cooperators. Several processes that generate such frequency-dependence, and thereby allow the stable coexistence of cheats and cooperators, have been proposed. These include: (i) conditional cheating, where individuals switch between cheating and cooperating depending on opportunities to exploit cooperators [@gore2009a]; (ii) diminishing returns on cooperative investment, where cheats get large benefits when cooperators are common, and small benefits when they are rare, which generates negative frequency-dependent selection[@lujan2015; @patel2019; @ross-gillespie2007b]; and (iii) threshold effects, where groups become resilient to cheating once they contain enough cooperators[@patel2019]. These processes have been examined almost exclusively in microorganisms, where public goods such as secreted enzymes, siderophores and toxins are readily exploited, leaving it unclear whether the same processes also operate in the cooperative societies of multicellular organisms[@west2021a].
+
+Here we test these ideas in a vertebrate cooperative breeder, the ostrich, *Struthio camelus*, by examining whether cheating is conditional on social context, whether the payoffs to cheating depend on the frequency of cooperators, how cooperators respond to cheats, and whether the consequences of cheating for groups depend on threshold numbers of cooperators. Ostriches breed in groups of unrelated males and females that all attempt to reproduce in a communal nest where they share incubation[@bertram1992a; @magigeBreedingBiologyOstriches2009; @kimwele2003a]. Cooperative incubation allows nests to be attended for longer, protecting eggs from predators and thermal stress, which increases hatching success [@melgar2022]. Some females, however, lay eggs in the nest but never incubate[@kimwele2003a; @bertram1979]. We classify these females as cheats.
+
+We manipulated the opportunities for cooperation and cheating by experimentally setting up groups with different numbers of male and female adults in a captive population[see also @melgar2022]. Over seven years, we quantified female incubation effort from behavioural observations and estimated individual female reproductive success in `r length(unique(df_strategy_counts$yearcamp))` groups using genetic parentage analysis. Combining these measures, we classified each female as a *cooperator* (contributed to incubation, regardless of whether or not she laid eggs), a *cheat* (laid eggs but did not incubate), or *other* (neither laid eggs nor incubated). We restrict our analyses to females for two reasons. First, maternity is unambiguous, so females have information about their reproductive contribution to the nest, as eggs were never seen being ejected from nests by other females. Second, because females mate with multiple males, a male’s failure to incubate could reflect perceived low paternity rather than cheating, and these alternatives cannot be distinguished.
+
+## **Results**
+
+### Prevalence of cheats changes with group size
+
+Cheating was common and dependent on group size (Fig. 1). In `r round((length(df_strategy_counts$yearcamp[df_strategy_counts$noFCheats != 0])/2)/length(unique(df_strategy_counts$yearcamp))*100)`% of breeding groups (`r length(df_strategy_counts$yearcamp[df_strategy_counts$noFCheats != 0])/2` out of `r length(unique(df_strategy_counts$yearcamp))`) there was at least one female cheat that laid eggs in the communal nest but did not incubate. The number of cheats increased with the number of females in groups (Fig. 1B. Posterior mode (PM) and credible interval (CI) = `r st_strategy_counts[st_strategy_counts$'Fixed Effects' == "Cheats : ZNumber of females","Posterior Mode (CI)"]`, pMCMC = `r st_strategy_counts[st_strategy_counts$'Fixed Effects' == "Cheats : ZNumber of females","pMCMC"]`. Extended Data Table 1). However, the relative frequency of cheats was lower in larger groups because the number of cooperators also increased with group size (Fig. 1C. PM (CI) = `r st_strategy_counts[st_strategy_counts$'Fixed Effects' == "Cooperators : ZNumber of females","Posterior Mode (CI)"]`, pMCMC `r st_strategy_counts[st_strategy_counts$'Fixed Effects' == "Cooperators : ZNumber of females","pMCMC"]`. Extended Data Table 1), resulting in a lower proportion of cheats relative to cooperators (Fig. 1D. PM (CI) = `r st_cheat_prop[st_cheat_prop$'Fixed Effects' == "ZNumber of cooperators","Posterior Mode (CI)"]`, pMCMC `r st_cheat_prop[st_cheat_prop$'Fixed Effects' == "ZNumber of cooperators","pMCMC"]`. Extended Data Table 2). No cheats were found in groups with two females, whereas `r (round(nrow(inds_filtered[inds_filtered$nofemales > 2 & inds_filtered$BS == "Cheat",])/nrow(inds_filtered[inds_filtered$nofemales > 2,])*100))`% of females in groups with three or more females cheated (`r nrow(inds_filtered[inds_filtered$nofemales > 2 & inds_filtered$BS == "Cheat",])` out of `r nrow(inds_filtered[inds_filtered$nofemales > 2,])`). \
+
+```{r Figure theme, include=F}
+t1 <- theme(strip.background=element_rect(fill="white"),text = element_text(size=12),title =element_text(size=12),axis.text.y = element_text(size=12,colour="black"),axis.text.x = element_text(size=12,colour="black"),legend.title = element_text(size=12,colour="black"),legend.text = element_text(size = 10),legend.position="top",legend.justification = "top",panel.grid.major = element_blank(), panel.grid.minor=element_blank(),panel.background=element_rect(colour="black",linetype = 1,fill = "white"))
+#
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap = paste0("**Figure 1: The frequency of cheats and cooperators in experimentally established breeding groups of ostriches**. (A) Three female ostriches at a communal nest, with the female on the right incubating. Most female ostriches cooperate by taking turns incubating, but some cheat this cooperative system and never incubate. (B) The mean number of cheats and (C) the mean number of cooperators per group increased with number of females in groups. (D) The mean proportion of females in a group that were cheats, was lower in groups with more females. Circles show means across groups and error bars show means +/- one standard error; solid lines show fitted values from Bayesian mixed models (B, C: Extended Data Table 1; D: Extended Data Table 2) with shaded 95% credible intervals.", " Sample sizes: n = ", length(unique(df_strategy_counts$yearcamp)), " groups across ", words(length(unique(df_strategy_counts$year))), " years in B-D."), fig.height = 7, fig.width = 10, dpi = 600, align = "center"}
+#
+#**Compute figure data*
+dat = df_strategy_counts |> dplyr::select(yearcamp,nofemales,BS,n) |> pivot_wider(names_from = BS, values_from = n) |> mutate(prop_cheats = Cheat/(Cheat+Cooperator), nofemales = factor(nofemales))
+#Mean number of cooperators ~ no.females
+sum_dat_b<-dat |>  group_by(nofemales) |>  dplyr::summarise(mean=mean(Cooperator,na.rm=T),
+                                                                    lcl=mean(Cooperator,na.rm=T)-(sd(Cooperator,na.rm=T)/sqrt(n())),
+                                                                    ucl=mean(Cooperator,na.rm=T)+(sd(Cooperator,na.rm=T)/sqrt(n())))
+#Mean number of cheats ~ no.females
+sum_dat_c<-dat |>  group_by(nofemales) |>  dplyr::summarise(mean=mean(Cheat,na.rm=T),
+                                                                    lcl=mean(Cheat,na.rm=T)-(sd(Cheat,na.rm=T)/sqrt(n())),
+                                                                    ucl=mean(Cheat,na.rm=T)+(sd(Cheat,na.rm=T)/sqrt(n())))
+#Proportion of cheats ~ no.cooperators
+sum_dat_d<-dat |>  group_by(Cooperator) |>  dplyr::summarise(mean=mean(prop_cheats,na.rm=T),
+                                                                    lcl=mean(prop_cheats,na.rm=T)-(sd(prop_cheats,na.rm=T)/sqrt(n())),
+                                                                    ucl=mean(prop_cheats,na.rm=T)+(sd(prop_cheats,na.rm=T)/sqrt(n())))
+#
+#**Model predictions for Figure 1 (fitted lines +/- 95% credible intervals)*
+#All predictions below are population-average (marginal) fits: they are averaged over the random-
+#effects distribution rather than evaluated at a single "typical" group (random effects = 0), so that
+#they are directly comparable to the plotted group means. Any covariate not shown on the axis is held
+#at its mean. Continuous predictors were z-transformed with scale() before modelling, so raw x-values
+#are first converted to the z-scale using the mean and sd of the model data. When back-transforming to
+#the data scale, predictions are averaged over the random effects: for Poisson (log-link) models the
+#marginal mean is exp(lp + V/2), and for binomial (logit-link) models it is plogis(lp / sqrt(1 + c^2*V))
+#with c = 16*sqrt(3)/(15*pi), where V is the total random-effect variance (summed across variance
+#components) for each posterior sample.
+#
+#--Panel B: number of cheats vs number of females (Model m_strategy_counts_int_c1, Poisson / log link)--
+#Step 1: recover the z-transformation constants for number of females from the model data
+fem_mean <- mean(df_strategy_counts$nofemales)
+fem_sd   <- sd(df_strategy_counts$nofemales)
+#Step 2: the group sizes (number of females) present in the data
+fem_levels <- sort(unique(df_strategy_counts$nofemales))
+#Step 3: total random-effect variance of the model for each posterior sample (for the marginal mean)
+V_strategy_counts <- rowSums(m_strategy_counts_int_c1$VCV)
+#Step 4: at each group size, predict the number of cheats for every posterior sample, then
+#summarise the posterior to a median and a 95% credible interval
+pred_cheats <- do.call(rbind, lapply(fem_levels, function(x){
+  z <- (x - fem_mean) / fem_sd                                          #raw group size -> z-scale
+  counts <- exp(m_strategy_counts_int_c1$Sol[, "BSCheat"] +                              #log link, marginal mean:
+                m_strategy_counts_int_c1$Sol[, "BSCheat:Znofemales"] * z + V_strategy_counts / 2)    #exp(lp + V/2)
+  data.frame(nofemales = factor(x, levels = fem_levels),
+             mean = median(counts), lcl = quantile(counts, 0.025), ucl = quantile(counts, 0.975))
+}))
+#
+#--Panel C: number of cooperators vs number of females (same model, Cooperator terms)--
+pred_coops <- do.call(rbind, lapply(fem_levels, function(x){
+  z <- (x - fem_mean) / fem_sd
+  counts <- exp(m_strategy_counts_int_c1$Sol[, "BSCooperator"] +
+                m_strategy_counts_int_c1$Sol[, "BSCooperator:Znofemales"] * z + V_strategy_counts / 2)
+  data.frame(nofemales = factor(x, levels = fem_levels),
+             mean = median(counts), lcl = quantile(counts, 0.025), ucl = quantile(counts, 0.975))
+}))
+#
+#--Panel D: proportion of cheats vs number of cooperators (Model m_cheat_prop_main_c1, binomial / logit link)--
+#Step 1: z-transformation constants for number of cooperators, from the model data
+coop_mean <- mean(df_cheat_prop$noFCoopsCamp)
+coop_sd   <- sd(df_cheat_prop$noFCoopsCamp)
+#Step 2: predict across a fine grid spanning the plotted range of cooperators (1 to 5)
+coop_grid <- seq(1, 5, by = 0.1)
+#Step 3: constant and total random-effect variance for the marginal binomial mean (see header)
+logit_c <- 16 * sqrt(3) / (15 * pi)
+V_cheat_prop   <- rowSums(m_cheat_prop_main_c1$VCV)
+#Step 4: at each value predict the proportion of cheats for every posterior sample (number of
+#"other" females held at its mean, i.e. z = 0), then summarise
+pred_propcheats <- do.call(rbind, lapply(coop_grid, function(x){
+  z <- (x - coop_mean) / coop_sd
+  prop <- plogis((m_cheat_prop_main_c1$Sol[, "(Intercept)"] +                        #logit link, marginal mean:
+                  m_cheat_prop_main_c1$Sol[, "ZnoFCoopsCamp"] * z) / sqrt(1 + logit_c^2 * V_cheat_prop))
+  data.frame(Cooperator = x,
+             mean = median(prop), lcl = quantile(prop, 0.025), ucl = quantile(prop, 0.975))
+}))
+#
+#**Figure 1A: Picture of females at nest*
+#Import picture
+#f1RSa <- readPNG("R_Input_files/Fem_inc.png")#When runnig a chunk
+f1RSa <- image_read(here("R_Input_files/Fem_inc.png"))
+#Add white border
+# Define border sizes
+top_border <- 0
+bottom_border <- 350
+left_border <- 350
+right_border <- 50
+# Create a blank canvas with space for all borders
+full_canvas <- image_blank(
+  width = image_info(f1RSa)$width + left_border + right_border,
+  height = image_info(f1RSa)$height + top_border + bottom_border,
+  color = "white")
+#Overlay the original image onto the canvas
+f1RSa <- image_composite(
+  full_canvas, f1RSa,
+  offset = paste0("+", left_border, "+", top_border))#Positioning: Add left and top borders as offsets
+#Convert image to a grob
+f1RSaGrob <- rasterGrob(f1RSa)
+#Embed the image in a ggplot object
+f1RSa <- ggplot() +
+  annotation_custom(f1RSaGrob) + theme_void()  
+#
+#**Figure 1B: Number of cooperators ~ number of females*
+f1RSb =ggplot(data=dat,aes(x = nofemales, y = Cooperator))+
+  #Add the fitted mean number of cooperators (+/- 95% CI) from Model m_strategy_counts_int_c1, drawn behind the points
+  geom_ribbon(data = pred_coops, aes(x = nofemales, ymin = lcl, ymax = ucl, group = 1),
+              fill = "#009E73", alpha = 0.2, inherit.aes = FALSE) +
+  geom_line(data = pred_coops, aes(x = nofemales, y = mean, group = 1),
+            colour = "#009E73", linewidth = 1, inherit.aes = FALSE) +
+  #Individual groups behind the means
+  geom_point(data = dat, aes(x = nofemales, y = Cooperator), colour = "#009E73",
+  position = position_jitter(width = 0.18, height = 0.08, seed = 1), alpha = 0.25, size = 1.1) +
+  geom_pointrange(data = sum_dat_b, aes(x =nofemales, y = mean, ymin = lcl, ymax = ucl,fill="#009E73"),
+                  position=position_jitterdodge(jitter.width =0,dodge.width = 0),size=1,colour="black",stroke = 0.6,shape=21,alpha=0.6) +
+  #geom_smooth(method = "glm",formula=y~poly(x,2),method.args = list(family="binomial"))+
+  labs(x = "No. of females in group", y = "Mean no. of cooperators")+
+  scale_fill_manual(values="#009E73",name="")+t1+theme(legend.position = "none",  axis.title.x = element_text(size = 14), axis.title.y = element_text(size = 14)) + coord_cartesian(ylim = c(1, 6)) +
+  scale_y_continuous(breaks = c(2, 3, 4, 5, 6))
+#
+#**Figure 1C: Number of cheats ~ number of females*
+f1RSc =ggplot(data=dat,aes(x = nofemales, y = Cheat))+
+  #Add the fitted mean number of cheats (+/- 95% CI) from Model m_strategy_counts_int_c1, drawn behind the points
+  geom_ribbon(data = pred_cheats, aes(x = nofemales, ymin = lcl, ymax = ucl, group = 1),
+              fill = "#E69F00", alpha = 0.2, inherit.aes = FALSE) +
+  geom_line(data = pred_cheats, aes(x = nofemales, y = mean, group = 1),
+            colour = "#E69F00", linewidth = 1, inherit.aes = FALSE) +
+  #Individual groups behind the means
+  geom_point(data = dat, aes(x = nofemales, y = Cheat), colour = "#E69F00",
+  position = position_jitter(width = 0.18, height = 0.08, seed = 1), alpha = 0.25, size = 1.1) +
+  geom_pointrange(data = sum_dat_c, aes(x =nofemales, y = mean, ymin = lcl, ymax = ucl,fill="#E69F00"),
+                  position=position_jitterdodge(jitter.width =0,dodge.width = 0),size=1,colour="black",stroke = 0.6,shape=21,alpha=0.6) +
+  labs(x = "No. of females in group", y = "Mean no. of cheats")+
+  scale_fill_manual(values="#E69F00",name="")+t1+theme(legend.position = "none", axis.title.x = element_text(size = 14), axis.title.y = element_text(size = 14)) +
+  expand_limits(y = range(sum_dat_c$mean) + c(-0.05, 0.05))
+#
+#**Figure 1C: Proportion of cheats ~ number of cooperators*
+f1RSd = ggplot(data=filter(dat, Cooperator != 0 &  Cooperator != 6),aes(x = Cooperator, y = prop_cheats))+
+  #Add the fitted proportion of cheats (+/- 95% CI) from Model m_cheat_prop_main_c1, drawn behind the points
+  geom_ribbon(data = pred_propcheats, aes(x = Cooperator, ymin = lcl, ymax = ucl),
+              fill = "#E69F00", alpha = 0.2, inherit.aes = FALSE) +
+  geom_line(data = pred_propcheats, aes(x = Cooperator, y = mean),
+            colour = "#E69F00", linewidth = 1, inherit.aes = FALSE) +
+  #Individual groups behind the means
+  geom_point(data = filter(dat, Cooperator != 0 & Cooperator != 6), aes(x = Cooperator, y = prop_cheats),
+  colour = "#E69F00", position = position_jitter(width = 0.18, height = 0, seed = 1), alpha = 0.25, size = 1.1) +
+  geom_pointrange(data = filter(sum_dat_d, Cooperator != 0 &  Cooperator != 6), aes(x = Cooperator, y = mean, ymin = lcl, ymax = ucl,fill="#E69F00"),
+                  position=position_jitterdodge(jitter.width =0,dodge.width = 0),size=1,colour="black",stroke = 0.6,shape=21,alpha=0.6) +
+  labs(x = "No. of cooperators in group", y = "Mean proportion of cheats")+
+  #ylim(c(0,0.25))+
+  scale_fill_manual(values="#E69F00",name="")+t1+theme(legend.position = "none", axis.title.x = element_text(size = 14), axis.title.y = element_text(size = 14))
+#
+#**Figure 1: Full figure*
+ggarrange(f1RSa, f1RSc, f1RSb, f1RSd, labels = c("A","B", "C", "D"))
+```
+
+### Cheating is conditional
+
+To test whether some individuals consistently cheat, or whether cheating was conditional on social context, we placed females in groups of different sizes across successive breeding seasons (N~females~ = `r length(unique(df_cheat_prob$id))`). Of the `r length(unique(cheats_ever$id))` females that cheated in at least one breeding season, only `r words(nrow(cheats_ever_BS[cheats_ever_BS$Cooperator == 0,]))` (`r round((nrow(cheats_ever_BS[cheats_ever_BS$Cooperator == 0,])/length(unique(cheats_ever$id))) * 100)`%) always cheated, with `r nrow(cheats_ever_BS[cheats_ever_BS$Cooperator != 0,])` cooperating in other seasons. Consequently, repeatability in the probability of cheating was low, indicating that cheating is context-dependent (variation in the probability of cheating explained by individual, I^2^% (CI) = `r st_cheat_prob[st_cheat_prob$'Fixed Effects' == "Individual", "pMCMC"]`. Extended Data Table 3). Furthermore, neither age nor body mass predicted whether a female cheated (pMCMC > 0.05. Extended Data Table 3), suggesting that social context rather than individual attributes determines the emergence of cheating.
+
+### Reproductive consequences of cheating
+
+```{r Create figure 2 data, include=FALSE, message=FALSE, echo=FALSE}
+df_eggs_all_summary <- df_eggs_all %>% filter(noFCoopsCamp !=0, noFCoopsCamp !=6) %>%
+  group_by(noFCoopsCamp, BS_2) %>% 
+  dplyr::summarise(n = n(), meanRS = mean(RSInc4, na.rm = T), mean = mean(relativeRSInc4, na.rm = T), lcl = mean(relativeRSInc4, na.rm = T) - (sd(relativeRSInc4)/sqrt(n())), ucl = mean(relativeRSInc4, na.rm = T) + (sd(relativeRSInc4)/sqrt(n())))
+#Labels for the three breeding strategies, used in the legend and in the comparison panels
+BSlabels <- c("Cheat" = "Cheats", "Coop_w/o_Cheat" = "Cooperators, no cheat", "Coop_w_Cheat" = "Cooperators, cheat")
+
+#
+#Constants for converting the z-transformed day scale back to raw days. ZDay was z-transformed across
+#a larger set of rows than df_activity_allocation (the same scaling as df_incubation_time and df_activity), so the mean and
+#sd of df_activity_allocation do not invert it. The constants are therefore recovered from the relationship between
+#ZDay and the raw day variable, which is exactly linear because ZDay was made with scale().
+day_map = lm(dayordereggsleft ~ z, data = data.frame(dayordereggsleft = df_activity_allocation$dayordereggsleft,
+                                                     z = as.numeric(df_activity_allocation$ZDay)))
+day_mean = coef(day_map)[1]
+day_sd = coef(day_map)[2]
+```
+
+To test if cheats and cooperators invested differently in egg production, we monitored female egg-laying. We found that cheats laid similar numbers of eggs than both cooperators in groups with cheats (PM (CI) = `r st_eggs[st_eggs$'Fixed Effects' == "Cheats vs Cooperators in groups with cheats","Posterior Mode (CI)"]`, pMCMC = `r st_eggs[st_eggs$'Fixed Effects' == "Cheats vs Cooperators in groups with cheats","pMCMC"]`. Extended Data Table 5), and cooperators in groups without cheats (PM (CI) = `r st_eggs[st_eggs$'Fixed Effects' == "Cheats vs Cooperators in groups without cheats","Posterior Mode (CI)"]`, pMCMC = `r st_eggs[st_eggs$'Fixed Effects' == "Cheats vs Cooperators in groups without cheats","pMCMC"]`. Extended Data Table 5). Females that adopted both strategies also laid comparable numbers of eggs when they cheated and when they cooperated (PM (CI) = `r st_eggs_within_female[st_eggs_within_female$'Fixed Effects' == "Cheats vs Cooperates","Posterior Mode (CI)"]`, pMCMC = `r st_eggs_within_female[st_eggs_within_female$'Fixed Effects' == "Cheats vs Cooperates","pMCMC"]`. Extended Data Fig. 1. Extended Data Table 6). 
+
+The number of eggs cheats and cooperators laid did, however, depend on how many cooperators were present in groups. Cheats laid more eggs than cooperators sharing the same nest, but only in the largest groups. In groups with five cooperators, cheats laid PM (CI) = `r st_eggs[st_eggs$'Fixed Effects' == "Cheats vs Cooperators in groups with cheats : 5 cooperators in group","Posterior Mode (CI)"]` more eggs per female than cooperators in the same groups (pMCMC = `r st_eggs[st_eggs$'Fixed Effects' == "Cheats vs Cooperators in groups with cheats : 5 cooperators in group","pMCMC"]`. Fig. 2A, middle panel. Extended Data Table 5), whereas in groups with one to four cooperators the two did not differ (Extended Data Table 5). The number of eggs cooperators laid did not increase with the number of cooperators in groups, regardless of the presence of cheats (Groups without cheats: PM (CI) = `r st_eggs[st_eggs$'Fixed Effects' == "Cooperators in groups without cheats : ZNumber of cooperators","Posterior Mode (CI)"]`, pMCMC = `r st_eggs[st_eggs$'Fixed Effects' == "Cooperators in groups without cheats : ZNumber of cooperators","pMCMC"]`; groups with cheats: PM (CI) = `r st_eggs[st_eggs$'Fixed Effects' == "Cooperators in groups with cheats : ZNumber of cooperators","Posterior Mode (CI)"]`, pMCMC = `r st_eggs[st_eggs$'Fixed Effects' == "Cooperators in groups with cheats : ZNumber of cooperators","pMCMC"]`. Extended Data Fig. 2 and Extended Data Table 5). On average, cheats laid `r words(round(mean(df_eggs_all_summary$meanRS[df_eggs_all_summary$BS_2 == "Cheat" & df_eggs_all_summary$noFCoopsCamp < 4])))` eggs in groups with one to three cooperators, compared to an average of `r words(round(mean(df_eggs_all_summary$meanRS[df_eggs_all_summary$BS_2 == "Cheat" & df_eggs_all_summary$noFCoopsCamp == 5])))` eggs, more than double, in groups with five cooperators (Extended Data Fig. 2). In contrast, cooperators laid fewer eggs in the presence of cheats, but only in the smallest groups. In groups containing a single cooperator, those with cheats laid fewer eggs than those without cheats (Fig. 2A, left panel. Difference in fitted number of eggs laid by cooperators with and without cheats: PM (CI) = `r st_eggs[st_eggs$'Fixed Effects' == "Cooperators in groups without cheats vs Cooperators in groups with cheats : 1 cooperators in group","Posterior Mode (CI)"]`, pMCMC = `r st_eggs[st_eggs$'Fixed Effects' == "Cooperators in groups without cheats vs Cooperators in groups with cheats : 1 cooperators in group","pMCMC"]`. Extended Data Table 5), but this difference diminished when more cooperators were present. This pattern was also captured by a significant difference in the quadratic term for the relationship between egg number and number of cooperators for cooperators with and without cheats (PM (CI) = `r st_eggs[st_eggs$'Fixed Effects' == "Cooperators in groups without cheats : ZNumber of cooperators^2 vs Cooperators in groups with cheats : ZNumber of cooperators^2","Posterior Mode (CI)"]`, pMCMC = `r st_eggs[st_eggs$'Fixed Effects' == "Cooperators in groups without cheats : ZNumber of cooperators^2 vs Cooperators in groups with cheats : ZNumber of cooperators^2","pMCMC"]`. Extended Data Table 5).
+
+At the group level, the presence of cheats was associated with slower completion of the clutch. Egg-laying rates were initially similar between groups with and without cheats but diverged over time, with groups containing cheats accumulating eggs more slowly (Fig. 2B. Difference in quadratic time terms: PM (CI) = `r st_laying_group[st_laying_group$'Fixed Effects' == "Cheats in camp - No : ZDays^2 vs Cheats in camp - Yes : ZDays^2","Posterior Mode (CI)"]`, pMCMC = `r st_laying_group[st_laying_group$'Fixed Effects' == "Cheats in camp - No : ZDays^2 vs Cheats in camp - Yes : ZDays^2","pMCMC"]`. Extended Data Table 7). This group-level pattern reflected differences in when individual females laid. Cheats and cooperators did not differ in the overall probability of laying (PM (CI) = `r st_laying_window[st_laying_window$'Fixed Effects' == "Cheats vs Cooperators","Posterior Mode (CI)"]`, pMCMC = `r st_laying_window[st_laying_window$'Fixed Effects' == "Cheats vs Cooperators","pMCMC"]`. Extended Data Table 8), but the probability declined more steeply across the laying period in cooperators than in cheats (difference in quadratic terms: PM (CI) = `r st_laying_window[st_laying_window$'Fixed Effects' == "Cheats : ZWindow^2 vs Cooperators : ZWindow^2","Posterior Mode (CI)"]`, pMCMC `r st_laying_window[st_laying_window$'Fixed Effects' == "Cheats : ZWindow^2 vs Cooperators : ZWindow^2","pMCMC"]`. Extended Data Table 8), such that cheats continued laying late in the period when cooperators had largely stopped.  As a result, the switch from egg-laying to incubation took `r round(summary(m_activity_cheat$lme.fit)$tTable["G0", "Value"] * day_sd + day_mean)` days (CI = `r round(confint(m_activity_cheat)["2.5%",  "G0"] * day_sd + day_mean, digits = 2)`, `r round(confint(m_activity_cheat)["97.5%", "G0"] * day_sd + day_mean, digits = 2)`, segmented regression) in groups with cheats, as opposed to `r round(summary(m_activity_nocheat$lme.fit)$tTable["G0", "Value"] * day_sd + day_mean)` days (CI = `r round(confint(m_activity_nocheat)["2.5%",  "G0"] * day_sd + day_mean, digits = 2)`, `r round(confint(m_activity_nocheat)["97.5%", "G0"] * day_sd + day_mean, digits = 2)`) in groups without cheats (Fig. 2C. Extended Data Table 14).
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap = paste0("**Figure 2: The reproductive consequences of cheating**. (A) Differences in the number of eggs laid between each pair of breeding strategies, in relation to the number of cooperators in groups, calculated within each posterior sample. The number of eggs laid was modelled as a count with year as a random effect, and differences are expressed relative to the annual mean. The dashed line indicates no difference. Credible intervals (shaded ribbons) that do not overlap the dashed line indicate group sizes at which two strategies differ. Open circles show differences between the observed means of two strategies, with error bars giving the standard error of the difference (the square root of the sum of the two squared standard errors). The numbers inside each panel give the sample sizes contributing to each comparison. (B) Cumulative proportion of eggs laid by breeding groups with (orange) and without (green) cheats across time. Circles and error bars show mean +/- one standard error. (C) Allocation of group activity between egg-laying (0) and incubating (1) over time in groups with cheats (orange) and without cheats (green). Activity allocation is the time spent incubating divided by that time plus the proportion of the daily maximum of six eggs that were laid, so with at least one egg laid it cannot exceed 6/7 for any group size, resulting in an empty band between 0.86 and 1. Solid lines show fitted values from Bayesian mixed models in A (Poisson, Extended Data Table 5) and B (binomial, Extended Data Table 7), and from segmented (breakpoint) mixed models in C (Extended Data Table 14). Shaded ribbons show 95% credible intervals (A, B) and 95% confidence intervals (C).", " Sample sizes: (A) n = ", nrow(df_eggs), " observations from ", length(unique(df_eggs$id)), " females in ", length(unique(df_eggs$yearcamp)), " groups; (B) n = ", nrow(df_laying_group), " group-days from ", length(unique(df_laying_group$yearcamp)), " groups; (C) n = ", nrow(df_activity_allocation), " group-days from ", length(unique(df_activity_allocation$yearcamp)), " groups."), fig.height = 10, fig.width = 10, dpi = 600, align = "center"}
+#
+#**Model predictions for Figure 2A (fitted lines +/- 95% credible intervals)*
+#Fitted number of eggs from Model m_eggs_quad_c1 (Poisson, log link). Two things make the fitted line
+#comparable to the plotted means. First, the log link is non-linear, so fitted counts are averaged over
+#the random-effect distribution rather than evaluated at random effects = 0; the distribution is
+#evaluated at the midpoints of 40 equal-probability slices of a normal. Second, the year variance is
+#left out of that average and the fitted values are divided by the overall fitted value: dividing a
+#count by its annual mean removes the year effect exactly under a log link, so this puts the fit on the
+#same "eggs relative to the annual mean" axis as the observed data. Plotting raw counts instead would
+#mislead, because the annual mean varies more than five-fold across years and the years contributing to
+#each group size differ, so raw means are not comparable across the x axis.
+#Covariates not shown on the axis are held at the mean observed within each strategy, so that the
+#fitted line matches the composition of the groups it summarises.
+#Step 1: z-transformation constants for number of cooperators, from the model data
+coop2_mean  <- mean(df_eggs$noFCoopsCamp)
+coop2_sd    <- sd(df_eggs$noFCoopsCamp)
+#Step 2: the random-effect distribution used when averaging, and the variance it is taken over
+REnodes_eggs <- qnorm(seq(0.5/40, 1 - 0.5/40, length.out = 40))
+V_eggs       <- rowSums(m_eggs_quad_c1$VCV[, colnames(m_eggs_quad_c1$VCV) != "year"])
+#Fitted counts for one strategy at one point on the x axis, for every posterior sample
+fitted_eggs <- function(strategy, x, zOther, broken){
+  z <- (x - coop2_mean) / coop2_sd                     #raw cooperators -> z-scale
+  eta <- m_eggs_quad_c1$Sol[, paste0("BS_2", strategy)] +
+         m_eggs_quad_c1$Sol[, paste0("BS_2", strategy, ":ZnoFCoops")]  * z +
+         m_eggs_quad_c1$Sol[, paste0("BS_2", strategy, ":ZnoFCoops2")] * z^2 +
+         m_eggs_quad_c1$Sol[, "logit_prop.BrokenInc"] * broken +
+         m_eggs_quad_c1$Sol[, "ZnoFOther"] * zOther
+  rowMeans(sapply(REnodes_eggs, function(u) exp(eta + sqrt(V_eggs) * u)))
+}
+#Step 3: the reference the fitted values are expressed relative to, averaged over the data composition
+ref_eggs <- rowMeans(sapply(seq_len(nrow(df_eggs)), function(i)
+  fitted_eggs(as.character(df_eggs$BS_2[i]), df_eggs$noFCoopsCamp[i],
+             mean(df_eggs$ZnoFOther[df_eggs$BS_2 == df_eggs$BS_2[i]]),
+             mean(df_eggs$logit_prop.BrokenInc[df_eggs$BS_2 == df_eggs$BS_2[i]]))))
+#
+#The grid of cooperator numbers the differences are evaluated on, fine enough to draw a smooth curve
+coop2_grid <- seq(1, 5, by = 0.05)
+#
+#**Model predictions for Figure 2B (differences between the fitted curves +/- 95% credible intervals)*
+#Overlapping credible intervals in Fig. 2A do not test whether two strategies differ, so the fitted
+#values of each pair are subtracted within every posterior sample and the posterior of that difference
+#is summarised. Under a log link the covariate terms do not cancel as they would on an identity scale,
+#so both strategies are evaluated with the covariates held at the same overall mean and the comparison
+#isolates breeding strategy. Sign convention: the first strategy minus the second, so positive values
+#mean the first strategy laid more eggs. These are the comparisons tabulated in Extended Data Table 5.
+zOther_eggs <- mean(df_eggs$ZnoFOther)
+broken_eggs <- mean(df_eggs$logit_prop.BrokenInc)
+df_eggs_diff_pairs <- list(c("Coop_w/o_Cheat", "Coop_w_Cheat"), c("Cheat", "Coop_w_Cheat"), c("Cheat", "Coop_w/o_Cheat"))
+df_eggs_diff <- do.call(rbind, lapply(df_eggs_diff_pairs, function(p){
+  do.call(rbind, lapply(coop2_grid, function(x){
+    diff <- (fitted_eggs(p[1], x, zOther_eggs, broken_eggs) -
+             fitted_eggs(p[2], x, zOther_eggs, broken_eggs)) / ref_eggs
+    data.frame(contrast = paste(BSlabels[p[1]], "-", BSlabels[p[2]]), focal = p[1], noFCoopsCamp = x,
+               mean = median(diff), lcl = quantile(diff, 0.025), ucl = quantile(diff, 0.975))
+  }))
+}))
+#The same differences taken from the observed strategy means, with the two standard errors combined,
+#so that the raw data are shown alongside the fitted differences
+df_eggs_diff_summary <- do.call(rbind, lapply(df_eggs_diff_pairs, function(p){
+  first  <- df_eggs_all_summary[df_eggs_all_summary$BS_2 == p[1],]
+  second <- df_eggs_all_summary[df_eggs_all_summary$BS_2 == p[2],]
+  both   <- merge(first, second, by = "noFCoopsCamp", suffixes = c("_1", "_2"))
+  data.frame(contrast = paste(BSlabels[p[1]], "-", BSlabels[p[2]]), focal = p[1],
+             noFCoopsCamp = both$noFCoopsCamp,
+             mean = both$mean_1 - both$mean_2,
+             lcl  = (both$mean_1 - both$mean_2) - sqrt((both$mean_1 - both$lcl_1)^2 + (both$mean_2 - both$lcl_2)^2),
+             ucl  = (both$mean_1 - both$mean_2) + sqrt((both$ucl_1 - both$mean_1)^2 + (both$ucl_2 - both$mean_2)^2),
+             n_label = paste0(both$n_1, " vs ", both$n_2))
+}))
+#Keep the three comparisons in a fixed order in both data frames
+df_eggs_diff$contrast <- factor(df_eggs_diff$contrast, levels = unique(df_eggs_diff$contrast))
+df_eggs_diff_summary$contrast  <- factor(df_eggs_diff_summary$contrast,  levels = levels(df_eggs_diff$contrast))
+#
+#**Model predictions for Figure 2D (fitted broken lines +/- 95% confidence intervals)*
+#Fitted activity allocation from the segmented (breakpoint) mixed models (Model 12): m_activity_nocheat for
+#groups without a cheat and m_activity_cheat for groups with a cheat. On the logit scale the fitted broken
+#line is: (Intercept) + ZDay*z + U*max(z - breakpoint, 0), with the number of cooperators and
+#"other" females held at their mean (z = 0). Predictions are back-transformed with plogis().
+#95% CIs are Wald intervals from the fixed-effect covariance, treating the breakpoint location as
+#fixed at its estimate (its own uncertainty is reported separately in Extended Data Table 14).
+#Step 1: the z-scale to raw-day conversion is set up once with the figure data above (day_map), and is
+#the same conversion used for the breakpoints and their confidence intervals
+#Step 2: predict from each of the two segmented models across its own observed range of days
+df_activity_allocation_fit <- do.call(rbind, Map(function(seg_fit, cheat_label){
+  fe <- nlme::fixef(seg_fit$lme.fit)                    #fixed-effect estimates
+  V  <- vcov(seg_fit$lme.fit)                           #their covariance matrix
+  bp <- fe["G0"]                                        #estimated breakpoint (on the z-scale)
+  #Grid of days (z-scale) spanning the range observed for this cheat-presence group
+  z_obs <- as.numeric(df_activity_allocation$ZDay[df_activity_allocation$CheatinCamp == cheat_label])
+  zgrid <- seq(min(z_obs), max(z_obs), length.out = 100)
+  #Design matrix for the fixed part of the broken line (covariates held at mean = 0)
+  keep <- c("(Intercept)", "ZDay", "U")
+  X <- cbind(1, zgrid, pmax(zgrid - bp, 0))
+  mu <- as.numeric(X %*% fe[keep])                      #linear predictor on the logit scale
+  se <- sqrt(rowSums((X %*% V[keep, keep]) * X))        #standard error via the design matrix
+  data.frame(CheatinCamp = cheat_label,
+             dayordereggsleft = as.numeric(predict(day_map, data.frame(z = zgrid))),
+             mean = plogis(mu), lcl = plogis(mu - 1.96 * se), ucl = plogis(mu + 1.96 * se))
+}, list(m_activity_nocheat, m_activity_cheat), list("No", "Yes")))
+#
+#Figure 2B: differences between the fitted curves in Fig. 2A. The dashed line is no difference, so a
+#ribbon clear of it marks the group sizes at which two strategies differ. Open circles are the same
+#differences taken from the observed means, and the text gives the two sample sizes behind each one.
+b = ggplot(df_eggs_diff, aes(x = noFCoopsCamp)) +
+  geom_hline(yintercept = 0, linetype = "dashed", colour = "black") +
+  geom_ribbon(aes(ymin = lcl, ymax = ucl, fill = focal), alpha = 0.25, colour = NA) +
+  geom_line(aes(y = mean, colour = focal), linewidth = 1) +
+  geom_pointrange(data = df_eggs_diff_summary, aes(x = noFCoopsCamp, y = mean, ymin = lcl, ymax = ucl),
+                  shape = 21, fill = "white", colour = "black", fatten = 4, size = 0.4) +
+  geom_text(data = df_eggs_diff_summary, aes(x = noFCoopsCamp, y = -3.6, label = n_label), size = 2.7, colour = "grey30") +
+  facet_wrap(~ contrast, nrow = 1) +
+  scale_colour_manual(values = c("Cheat" = "#E69F00", "Coop_w/o_Cheat" = "#009E73", "Coop_w_Cheat" = "#999999"), guide = "none") +
+  scale_fill_manual(values = c("Cheat" = "#E69F00", "Coop_w/o_Cheat" = "#009E73", "Coop_w_Cheat" = "#999999"), guide = "none") +
+  scale_x_continuous(breaks = 1:5, limits = c(0.55, 5.45)) +
+  coord_cartesian(ylim = c(-4, 4.5)) +
+  labs(x = "No. of cooperators in group", y = "Difference in mean relative\nno. eggs per individual") +
+  t1 + theme(axis.title.x = element_text(size = 14), axis.title.y = element_text(size = 14))
+#
+#Figure 2C
+#Summarize data:
+Eggs_camps_fig <- df_laying_group %>%
+  group_by(dayorderEggs, CheatinCamp) %>% 
+  dplyr::summarise(mean = mean(propeggs, na.rm = T),
+                   lcl = mean(propeggs, na.rm = T) - (sd(propeggs)/sqrt(n())),
+                   ucl = mean(propeggs, na.rm = T) + (sd(propeggs)/sqrt(n())), .groups = "drop")
+#
+#**Model predictions for Figure 2C (fitted lines +/- 95% credible intervals)*
+#Model m_laying_group_quad_c1 (binomial / logit link) does not model the cumulative proportion directly: its response
+#is the number of eggs laid on a day out of those still to be laid, i.e. the daily probability that a
+#remaining egg is laid. The cumulative proportion plotted here is therefore accumulated from those
+#daily probabilities as 1 - prod(1 - p) across days.
+#Two points about making the fitted line comparable to the plotted group means. First, the number of
+#cooperators and "other" females are held at the mean observed within each cheat-presence group rather
+#than at the pooled grand mean, as in Fig. 3B. Second, the plotted means average the cumulative curves
+#of individual groups, so the fitted line has to be averaged over the random-effect distribution in the
+#same way: the curve is accumulated separately at each of 40 values of the group random effect and
+#those curves are then averaged. Averaging the daily probabilities first and accumulating afterwards is
+#not equivalent, and reaches a proportion of one appreciably too early.
+#Step 1: linear map from the z-transformed day scale back to raw days (ZDay was made with scale(), so
+#the relationship to raw days is exactly linear and is recovered here with lm())
+day7_map <- lm(dayorderEggs ~ z, data = data.frame(dayorderEggs = df_laying_group$dayorderEggs,
+                                                   z = as.numeric(df_laying_group$ZDay)))
+#Step 2: total random-effect variance for each posterior sample, and the points at which the
+#random-effect distribution is evaluated (midpoints of 40 equal-probability slices of a normal)
+V_laying_group        <- rowSums(m_laying_group_quad_c1$VCV)
+REnodes_laying_group  <- qnorm(seq(0.5/40, 1 - 0.5/40, length.out = 40))
+#Step 3: predict for groups with and without a cheat, each across its own observed range of days
+Eggs_camps_fit <- do.call(rbind, lapply(c("No", "Yes"), function(L){
+  days <- sort(unique(df_laying_group$dayorderEggs[df_laying_group$CheatinCamp == L]))
+  zCoops <- mean(df_laying_group$ZnoCoops[df_laying_group$CheatinCamp == L])
+  zOther <- mean(df_laying_group$ZnoOther[df_laying_group$CheatinCamp == L])
+  #Linear predictor on the logit scale, for every posterior sample (rows) and day (columns).
+  #The model has a single ZDay term plus a difference for groups with a cheat, and a separate
+  #quadratic for each, so the slope for groups without a cheat is ZDay alone.
+  lp <- sapply(days, function(d){
+    z  <- (d - coef(day7_map)[1]) / coef(day7_map)[2]   #raw days -> z-scale
+    z2 <- z^2
+    m_laying_group_quad_c1$Sol[, paste0("CheatinCamp", L)] +
+      m_laying_group_quad_c1$Sol[, "ZnoCoops"] * zCoops + m_laying_group_quad_c1$Sol[, "ZnoOther"] * zOther +
+      m_laying_group_quad_c1$Sol[, "ZDay"] * z +
+      (if (L == "Yes") m_laying_group_quad_c1$Sol[, "CheatinCampYes:ZDay"] * z else 0) +
+      m_laying_group_quad_c1$Sol[, paste0("CheatinCamp", L, ":ZDay2")] * z2 +
+      m_laying_group_quad_c1$Sol[, "ZnoCoops:ZDay"] * zCoops * z + m_laying_group_quad_c1$Sol[, "ZnoCoops:ZDay2"] * zCoops * z2
+  })
+  #Accumulate the daily probabilities into a cumulative proportion at each value of the random effect,
+  #then average those curves
+  cumulative <- matrix(0, nrow(lp), length(days))
+  for (node in REnodes_laying_group) {
+    daily <- plogis(lp + sqrt(V_laying_group) * node)
+    cumulative <- cumulative + (1 - t(apply(1 - daily, 1, cumprod))) / length(REnodes_laying_group)
+  }
+  data.frame(CheatinCamp = L, dayorderEggs = days,
+             mean = apply(cumulative, 2, median),
+             lcl  = apply(cumulative, 2, quantile, 0.025),
+             ucl  = apply(cumulative, 2, quantile, 0.975))
+}))
+#Draw figure
+c = ggplot(Eggs_camps_fig,
+         aes(x = dayorderEggs, y = mean,
+             colour = CheatinCamp)) +
+  #Add the fitted cumulative proportion (+/- 95% CI) from Model m_laying_group_quad_c1, drawn behind the points
+  geom_ribbon(data = Eggs_camps_fit, aes(x = dayorderEggs, ymin = lcl, ymax = ucl, fill = CheatinCamp),
+              alpha = 0.25, colour = NA, inherit.aes = FALSE) +
+  geom_line(data = Eggs_camps_fit, aes(x = dayorderEggs, y = mean, colour = CheatinCamp),
+            linewidth = 1, inherit.aes = FALSE) +
+  geom_pointrange(aes(y = mean, ymin = lcl, ymax = ucl, colour = CheatinCamp),
+                  fatten = 5, size = 0.3, shape = 21, alpha = 1) +
+  labs(x = "Days from onset of incubation",
+       y = "Cumulative proportion\nof eggs laid (group level)", colour = "Cheat present", fill = "Cheat present") + 
+  scale_color_manual(values = c("Yes" = "#E69F00", "No" = "#009E73")) +
+  scale_fill_manual(values = c("Yes" = "#E69F00", "No" = "#009E73")) + t1 +
+  theme(axis.title.x = element_text(size = 14), axis.title.y = element_text(size = 14))
+#
+d = ggplot(df_activity_allocation, aes(x = dayordereggsleft, y = act_alloc, colour = CheatinCamp, fill = CheatinCamp)) +
+  geom_jitter(width = 0.2, height = 0, alpha = 0.15, size = 1) +
+  #Add the fitted broken lines (+/- 95% CI) from the segmented models (Model 14)
+  geom_ribbon(data = df_activity_allocation_fit, aes(x = dayordereggsleft, ymin = lcl, ymax = ucl, fill = CheatinCamp),
+              alpha = 0.25, colour = NA, inherit.aes = FALSE) +
+  geom_line(data = df_activity_allocation_fit, aes(x = dayordereggsleft, y = mean, colour = CheatinCamp),
+            linewidth = 1, inherit.aes = FALSE) +
+  #Add breakpoints and CI
+  geom_vline(xintercept = summary(m_activity_cheat$lme.fit)$tTable["G0", "Value"] * day_sd + day_mean, linewidth = 1, colour = "#E69F00", linetype = "dashed") +
+  annotate("rect",
+    xmin = confint(m_activity_cheat)["2.5%",  "G0"] * day_sd + day_mean, xmax = confint(m_activity_cheat)["97.5%", "G0"] * day_sd + day_mean,
+    ymin = -Inf, ymax = Inf,
+    fill = "#E69F00", alpha = 0.25) +
+  geom_vline(xintercept = summary(m_activity_nocheat$lme.fit)$tTable["G0", "Value"] * day_sd + day_mean, linewidth = 1, colour = "#009E73", linetype = "dashed") +
+  annotate("rect",
+    xmin = confint(m_activity_nocheat)["2.5%",  "G0"] * day_sd + day_mean, xmax = confint(m_activity_nocheat)["97.5%", "G0"] * day_sd + day_mean,
+    ymin = -Inf, ymax = Inf,
+    fill = "#009E73", alpha = 0.25) +
+  coord_cartesian(ylim = c(0, 1)) +
+  scale_colour_manual(values = c("No" = "#009E73", "Yes" = "#E69F00")) +
+  scale_fill_manual(values = c("No" = "#009E73", "Yes" = "#E69F00")) +
+  scale_y_continuous(breaks = c(0, 1)) +
+  labs(x = "Days from start of incubation period", y = "Activity allocation\n (egg-laying = 0 vs incubation = 1)", colour = "Cheat present", fill = "Cheat present") + t1 + theme(legend.position = "top",  axis.title.x = element_text(size = 14), axis.title.y = element_text(size = 14))
+#
+ggarrange(b, ggarrange(c, d, labels = c("B", "C"), ncol = 2), labels = "A", nrow = 2, heights = c(1, 1))
+```
+
+### Cooperators reduce incubation in response to cheats
+
+Next, we examined how cooperators responded to cheats by monitoring their behaviour. Cooperators did not punish cheats through increased aggression (aggression towards cheats vs towards cooperators: PM (CI) = `r st_aggression[st_aggression$'Fixed Effects' == "Aggression towards cheats vs Aggression towards cooperators","Posterior Mode (CI)"]`, pMCMC = `r st_aggression[st_aggression$'Fixed Effects' == "Aggression towards cheats vs Aggression towards cooperators","pMCMC"]`. Extended Data Fig. 3 and Extended Data Table 9). Instead, the presence of cheats was associated with a general reduction in incubation effort, measured as the proportion of time that individuals spent incubating. Consequently, groups containing cheats incubated their nests for less time than groups without cheats (Fig. 3A. PM (CI) = `r st_incubation_group[st_incubation_group$'Fixed Effects' == "Cheat in camp - No vs Cheat in camp - Yes","Posterior Mode (CI)"]`, pMCMC = `r st_incubation_group[st_incubation_group$'Fixed Effects' == "Cheat in camp - No vs Cheat in camp - Yes","pMCMC"]`. Extended Data Table 10). This reduction in incubation effort was consistent across all group sizes and persisted through the entire incubation period (Fig. 3B. PM (CI) = `r st_incubation_time[st_incubation_time$'Fixed Effects' == "Cheats in camp - No vs Cheats in camp - Yes","Posterior Mode (CI)"]`, pMCMC = `r st_incubation_time[st_incubation_time$'Fixed Effects' == "Cheats in camp - No vs Cheats in camp - Yes","pMCMC"]`. Extended Data Table 11).
+
+Although the per-individual reduction in incubation effort did not vary with group size, the total time nests were incubated increased with the number of cooperators both in groups with cheats (Fig. 3A. PM (CI) = `r st_incubation_group[st_incubation_group$'Fixed Effects' == "Cheat in camp - Yes : ZNumber of cooperators","Posterior Mode (CI)"]`, pMCMC = `r st_incubation_group[st_incubation_group$'Fixed Effects' == "Cheat in camp - Yes : ZNumber of cooperators","pMCMC"]`. Extended Data Table 10), and without cheats (Fig. 3A. PM (CI) = `r st_incubation_group[st_incubation_group$'Fixed Effects' == "Cheat in camp - No : ZNumber of cooperators","Posterior Mode (CI)"]`, pMCMC = `r st_incubation_group[st_incubation_group$'Fixed Effects' == "Cheat in camp - No : ZNumber of cooperators","pMCMC"]`. Extended Data Table 10). Groups with more cooperators were therefore partially buffered from the costs of cheating, and small groups containing cheats had the lowest total incubation time (Fig. 3A).
+
+To assess whether cooperators’ response to cheats reflected individual variation in the costs of reduced incubation, we tested whether a female’s egg investment predicted her reduction in incubation effort. Cooperators that laid more eggs spent more time incubating, irrespective of whether there were cheats in the group or not (cheats present: PM (CI) = `r st_incubation_individual[st_incubation_individual$'Fixed Effects' == "Cheat in camp - No : sqrt(Relative RS)","Posterior Mode (CI)"]`, pMCMC = `r st_incubation_individual[st_incubation_individual$'Fixed Effects' == "Cheat in camp - No : sqrt(Relative RS)","pMCMC"]`; cheats absent: PM (CI) = `r st_incubation_individual[st_incubation_individual$'Fixed Effects' == "Cheat in camp - Yes : sqrt(Relative RS)","Posterior Mode (CI)"]`, pMCMC = `r st_incubation_individual[st_incubation_individual$'Fixed Effects' == "Cheat in camp - Yes : sqrt(Relative RS)","pMCMC"]`. Extended Data Table 12). However, in small groups where cheats were present, females that laid fewer eggs reduced their incubation effort more than females that laid more eggs (Fig. 3C. Number of eggs x group size x presence of cheats: PM (CI) = `r st_incubation_individual[st_incubation_individual$'Fixed Effects' == "Cheat in camp - No : sqrt(Relative RS) : ZNumber of cooperators vs Cheat in camp - Yes : sqrt(Relative RS) : ZNumber of cooperators","Posterior Mode (CI)"]`, pMCMC = `r st_incubation_individual[st_incubation_individual$'Fixed Effects' == "Cheat in camp - No : sqrt(Relative RS) : ZNumber of cooperators vs Cheat in camp - Yes : sqrt(Relative RS) : ZNumber of cooperators","pMCMC"]`. Extended Data Table 12). This pattern was not observed in large groups, where the relationship between incubation effort and eggs laid was similar regardless of whether cheats were present or not (Fig. 3D).
+
+These results suggest that cooperators make fine-scale decisions based on their predicted reproductive returns from breeding events, and invest in offspring care accordingly. Females with more eggs invested in the nest maintained incubation regardless of the contribution of other females, presumably because the costs of nest failure are higher for them. In contrast, for females that laid fewer eggs, deserting incubation in response to cheating appears to be a viable option, particularly in small groups where per-capita incubation costs are highest.
+
+```{r, echo=FALSE, message=FALSE, warning=F, fig.cap = paste0("**Figure 3: Cooperators reduce incubation effort in the presence of cheats**. (A) Group-level incubation effort across the season in small (up to three cooperators) and large (more than three cooperators) groups with (orange) and without (green) cheats. (B) Group-level incubation effort per day across the season. (C, D) Individual incubation effort across the season for females that laid more (High) or fewer eggs (Low) than their group average, in small (C) and large (D) groups. Group size and relative egg numbers were dichotomized for presentation purposes only. Violins show the distribution of the data with small points representing the individual groups (A) or females (C, D). Large circles and error bars show the mean +/- one standard error, joined by lines. In (B) circles and error bars show the mean +/- one standard error per day, and the solid lines show fitted values from the Bayesian mixed model (Extended Data Table 11) with shaded 95% credible intervals. The y axis of (C) and (D) is on a square-root scale because individual incubation effort was right-skewed. Sample sizes: (A) n = ", nrow(df_incubation_group), " groups; (B) n = ", nrow(df_incubation_time), " group-days from ", length(unique(df_incubation_time$yearcamp)), " groups; (C, D) n = ", nrow(df_incubation_individual), " observations from ", length(unique(df_incubation_individual$id)), " females in ", length(unique(df_incubation_individual$yearcamp)), " groups."), fig.height = 9, fig.width = 11, dpi = 600, align = "center"}
+#
+#**Group level incubation - small/large groups*
+Fig3a = df_incubation_group |> mutate(small_large = ifelse(noFCoopsCamp < 4,"Small groups","Large groups"),
+                              Fpropsit = Finc_N1 / totobstime)
+#
+#Summarize the data:
+Fig3asum2 <- Fig3a %>%
+  group_by(small_large, FCheatinCamp) %>% 
+  dplyr::summarise(mean = mean(Fpropsit, na.rm = T), lcl = mean(Fpropsit, na.rm = T) - (sd(Fpropsit)/sqrt(n())), ucl = mean(Fpropsit, na.rm = T) + (sd(Fpropsit)/sqrt(n()))) |>
+  mutate(small_large = factor(small_large, levels = c("Small groups", "Large groups")))
+
+#**Figure: proportion of time incubating per camp*
+#
+#Summarize figure data:
+Inc_timing_fig <- df_incubation_time %>%
+  group_by(dayordereggsleft, CheatinCamp) %>% 
+  dplyr::summarise(mean = mean(propsit, na.rm = T),
+                   lcl = mean(propsit, na.rm = T) - (sd(propsit)/sqrt(n())),
+                   ucl = mean(propsit, na.rm = T) + (sd(propsit)/sqrt(n())))
+#
+#**Model predictions for Figure 3B (fitted lines +/- 95% credible intervals)*
+#Fitted group-level incubation effort from Model m_incubation_time_quad_c1 (binomial / logit link) across time, for
+#groups with and without a cheat. Two things make these fits comparable to the plotted group means:
+#(i) they are population-average (marginal) fits, averaged over the random effects, which matters here
+#because the among-group random-effect variance is large (a random-effects = 0 fit sits well below the
+#data); and (ii) the number of cooperators and "other" females are held at the mean observed within
+#each cheat-presence group rather than at the pooled grand mean. This second point matters because
+#groups without a cheat have more cooperators on average (~3.6) than groups with a cheat (~2.8), and
+#more cooperators increases incubation, so holding both lines at the grand mean would push the "no
+#cheat" line too low. Day was z-transformed and included as a linear and a quadratic term. The
+#marginal mean is plogis(lp / sqrt(1 + c^2 * V)) with c = 16*sqrt(3)/(15*pi) and V the total random-
+#effect variance per posterior sample.
+#Step 1: z-transformation constants for day, from the model data
+day8_mean <- mean(df_incubation_time$dayordereggsleft)
+day8_sd   <- sd(df_incubation_time$dayordereggsleft)
+#Step 2: constant and total random-effect variance for the marginal binomial mean (see header)
+logit_c <- 16 * sqrt(3) / (15 * pi)
+V_incubation_time    <- rowSums(m_incubation_time_quad_c1$VCV)
+#Step 3: predict across the observed range of days for each cheat-presence group
+day8_grid <- seq(min(df_incubation_time$dayordereggsleft), max(df_incubation_time$dayordereggsleft), length.out = 100)
+df_incubation_time_fit <- do.call(rbind, lapply(c("No", "Yes"), function(L){
+  #Cooperators and "other" females held at this cheat-presence group's own mean (the stored, already
+  #z-transformed columns are averaged, so the model's centring is respected)
+  zCoops <- mean(df_incubation_time$ZnoCoops[df_incubation_time$CheatinCamp == L])
+  zOther <- mean(df_incubation_time$ZnoOther[df_incubation_time$CheatinCamp == L])
+  do.call(rbind, lapply(day8_grid, function(x){
+    z  <- (x - day8_mean) / day8_sd                     #raw day -> z-scale
+    z2 <- z^2                                           #quadratic term = square of the z-score
+    #The model shares one ZDay slope (the "No" baseline) plus a "Yes"-specific adjustment, fits the
+    #quadratic day term separately for each cheat-presence group, and lets the number of cooperators
+    #interact with both the linear and quadratic day terms (so the trajectory shape depends on zCoops).
+    if(L == "No"){
+      lp <- m_incubation_time_quad_c1$Sol[, "CheatinCampNo"] +
+            m_incubation_time_quad_c1$Sol[, "ZnoCoops"] * zCoops + m_incubation_time_quad_c1$Sol[, "ZnoOther"] * zOther +
+            m_incubation_time_quad_c1$Sol[, "ZDay"] * z + m_incubation_time_quad_c1$Sol[, "ZnoCoops:ZDay"] * zCoops * z +
+            m_incubation_time_quad_c1$Sol[, "CheatinCampNo:ZDay2"] * z2 + m_incubation_time_quad_c1$Sol[, "ZnoCoops:ZDay2"] * zCoops * z2
+    } else {
+      lp <- m_incubation_time_quad_c1$Sol[, "CheatinCampYes"] +
+            m_incubation_time_quad_c1$Sol[, "ZnoCoops"] * zCoops + m_incubation_time_quad_c1$Sol[, "ZnoOther"] * zOther +
+            (m_incubation_time_quad_c1$Sol[, "ZDay"] + m_incubation_time_quad_c1$Sol[, "CheatinCampYes:ZDay"]) * z +
+            m_incubation_time_quad_c1$Sol[, "ZnoCoops:ZDay"] * zCoops * z +
+            m_incubation_time_quad_c1$Sol[, "CheatinCampYes:ZDay2"] * z2 + m_incubation_time_quad_c1$Sol[, "ZnoCoops:ZDay2"] * zCoops * z2
+    }
+    prop <- plogis(lp / sqrt(1 + logit_c^2 * V_incubation_time))     #logit link, marginal (population-average) mean
+    data.frame(CheatinCamp = L, dayordereggsleft = x,
+               mean = median(prop), lcl = quantile(prop, 0.025), ucl = quantile(prop, 0.975))
+  }))
+}))
+#
+Inc_camp_means = ggplot(data = Inc_timing_fig, aes(x = dayordereggsleft, y = mean, colour = CheatinCamp, fill = CheatinCamp, group = CheatinCamp)) +
+  #Add the fitted group-level incubation effort (+/- 95% CI) from Model m_incubation_time_quad_c1, drawn behind the points
+  geom_ribbon(data = df_incubation_time_fit, aes(x = dayordereggsleft, ymin = lcl, ymax = ucl, fill = CheatinCamp),
+              alpha = 0.2, colour = NA, inherit.aes = FALSE) +
+  geom_line(data = df_incubation_time_fit, aes(x = dayordereggsleft, y = mean, colour = CheatinCamp),
+            linewidth = 1, inherit.aes = FALSE) +
+  #Raw-mean joining line removed: the fitted model line above now shows the trend
+  #geom_line(data = Inc_timing_fig,
+  #          aes(colour = CheatinCamp, x = dayordereggsleft, y = mean), linewidth = 1, show.legend = FALSE,  alpha = 0.9, position = position_dodge(width = 0.3)) +
+  geom_pointrange(data = Inc_timing_fig,
+                  aes(x = dayordereggsleft, y = mean, ymin = lcl, ymax = ucl,  fill = CheatinCamp),colour = "black",stroke = 0.6,
+                  fatten = 7, size = 0.5, shape = 21, alpha = 0.6, position = position_dodge(width = 0.3)) +
+  labs(x = "Days from start of incubation period", y = "Mean group-level\nincubation effort", colour = "Cheat present", fill = "Cheat present") + 
+  guides(colour = "none") + scale_color_manual(values = c("Yes" = "#E69F00", "No" = "#009E73")) +
+  scale_fill_manual(values = c("Yes" = "#E69F00", "No" = "#009E73")) + scale_y_continuous(breaks = c(0.0, 0.2, 0.4, 0.6, 0.8, 1.0)) + t1 +
+  theme(axis.title.x = element_text(size = 14), axis.title.y = element_text(size = 14))
+#
+#**Combined figure*
+
+#**Individual incubation across the season, by egg investment and group size*
+#
+#**Individual incubation ~ low/high  - small/big groups*
+#Sample sizes are small if data is split finely - try to examine patterns when summarising data more coarsely
+#Split group sizes according to groups where cheating common (3 or less) and where cheating is rare (4 or more)
+Fig4data = df_incubation_individual |> dplyr::mutate(small_large = ifelse(noFCoopsCamp<4,"Small groups","Large groups"),
+                           small_large = factor(small_large, levels = c("Small groups", "Large groups")),
+                            high_low = ifelse(relativeRSInc4<mean(relativeRSInc4),"Low","High"),
+                           high_low = factor(high_low, levels = c("Low", "High")),
+                            propSit = sitdurbird / totobsdurYear)
+#
+#
+#Panels A, C and D share a layout: the distribution as a violin, the individual
+#data behind it, and the mean with its standard error on top. The dodge is the
+#same in all three so the two cheat-presence groups line up.
+DODGE <- 0.35
+cheat_cols <- c("No" = "#009E73", "Yes" = "#E69F00")
+
+Fig3a <- Fig3a %>% dplyr::mutate(small_large = factor(small_large, levels = c("Small groups", "Large groups")))
+Fig3asum2 <- Fig3asum2 %>% dplyr::mutate(small_large = factor(small_large, levels = c("Small groups", "Large groups")))
+
+Fig3a_p <- ggplot(Fig3a, aes(x = small_large, y = Fpropsit)) +
+  geom_violin(aes(fill = FCheatinCamp, group = interaction(small_large, FCheatinCamp)),
+              position = position_dodge(width = DODGE), width = 0.6,
+              alpha = 0.18, colour = NA, show.legend = FALSE) +
+  ggbeeswarm::geom_quasirandom(aes(colour = FCheatinCamp), dodge.width = DODGE,
+                               width = 0.10, alpha = 0.35, size = 1.1, show.legend = FALSE) +
+  geom_line(data = Fig3asum2, aes(x = small_large, y = mean, colour = FCheatinCamp,
+                                  group = FCheatinCamp),
+            linewidth = 1, show.legend = FALSE, position = position_dodge(width = DODGE)) +
+  geom_pointrange(data = Fig3asum2,
+                  aes(x = small_large, y = mean, ymin = lcl, ymax = ucl, fill = FCheatinCamp),
+                  colour = "black", stroke = 0.6, fatten = 6, size = 0.5, shape = 21,
+                  alpha = 0.9, position = position_dodge(width = DODGE)) +
+  scale_colour_manual(values = cheat_cols) + scale_fill_manual(values = cheat_cols) +
+  labs(x = NULL, y = "Group-level incubation\n(proportion of time, season)",
+       colour = "Cheat present", fill = "Cheat present") +
+  guides(colour = "none") + t1 + theme(axis.title.y = element_text(size = 12))
+
+#Panels C and D, one per group size. The y axis is square-root scaled because
+#individual incubation effort is strongly right-skewed: on a linear axis the
+#cell means are squeezed into a band too narrow to compare.
+incubation_panel <- function(which_size, show_y) {
+  d <- Fig4data %>% dplyr::filter(small_large == which_size)
+  s <- d %>% dplyr::group_by(high_low, FCheatinCamp) %>%
+    dplyr::summarise(mean = mean(propSit, na.rm = TRUE),
+                     se = sd(propSit, na.rm = TRUE) / sqrt(dplyr::n()), .groups = "drop")
+  ggplot(d, aes(x = high_low, y = propSit)) +
+    geom_violin(aes(fill = FCheatinCamp, group = interaction(high_low, FCheatinCamp)),
+                position = position_dodge(width = DODGE), width = 0.6,
+                alpha = 0.18, colour = NA, show.legend = FALSE) +
+    ggbeeswarm::geom_quasirandom(aes(colour = FCheatinCamp), dodge.width = DODGE,
+                                 width = 0.10, alpha = 0.35, size = 1.1, show.legend = FALSE) +
+    geom_line(data = s, aes(x = high_low, y = mean, colour = FCheatinCamp, group = FCheatinCamp),
+              linewidth = 1, show.legend = FALSE, position = position_dodge(width = DODGE)) +
+    geom_pointrange(data = s, aes(x = high_low, y = mean, ymin = mean - se, ymax = mean + se,
+                                  fill = FCheatinCamp),
+                    shape = 21, colour = "black", size = 0.5, fatten = 6,
+                    position = position_dodge(width = DODGE)) +
+    scale_y_sqrt(breaks = c(0, 0.05, 0.1, 0.2, 0.4, 0.6), limits = c(0, max(Fig4data$propSit))) +
+    scale_colour_manual(values = cheat_cols) + scale_fill_manual(values = cheat_cols) +
+    labs(x = "Mean relative\nno. eggs per individual",
+         y = if (show_y) "Individual-level incubation\n(proportion of time, season)" else NULL,
+         colour = "Cheat present", fill = "Cheat present") +
+    ggtitle(which_size) + guides(colour = "none") + t1 +
+    theme(plot.title = element_text(size = 12, hjust = 0.5),
+          axis.title.x = element_text(size = 14), axis.title.y = element_text(size = 12))
+}
+
+ggarrange(Fig3a_p,
+          Inc_camp_means + labs(y = "Group-level incubation\n(proportion of time, per day)"),
+          incubation_panel("Small groups", TRUE), incubation_panel("Large groups", FALSE),
+          labels = c("A", "B", "C", "D"), ncol = 2, nrow = 2,
+          common.legend = TRUE, legend = "top")
+```
+
+### Cooperation attenuates the costs of cheating in large groups
+
+The consequences of cheating for hatching success depended on the number of cooperators, and operated through complete nest failure rather than through a gradual reduction in the proportion of hatched eggs. In groups containing a cheat, the probability that a nest failed dropped steeply as the number of cooperators increased (PM (CI) = `r st_nest_failure[st_nest_failure$'Fixed Effects' == "Cheat in camp - Yes : ZNumber of cooperators","Posterior Mode (CI)"]`, pMCMC = `r st_nest_failure[st_nest_failure$'Fixed Effects' == "Cheat in camp - Yes : ZNumber of cooperators","pMCMC"]`), whereas in groups without cheats it was unrelated to the number of cooperators (PM (CI) = `r st_nest_failure[st_nest_failure$'Fixed Effects' == "Cheat in camp - No : ZNumber of cooperators","Posterior Mode (CI)"]`, pMCMC = `r st_nest_failure[st_nest_failure$'Fixed Effects' == "Cheat in camp - No : ZNumber of cooperators","pMCMC"]`); the two slopes differed significantly (PM (CI) = `r st_nest_failure[st_nest_failure$'Fixed Effects' == "Cheat in camp - No : ZNumber of cooperators vs Cheat in camp - Yes : ZNumber of cooperators","Posterior Mode (CI)"]`, pMCMC = `r st_nest_failure[st_nest_failure$'Fixed Effects' == "Cheat in camp - No : ZNumber of cooperators vs Cheat in camp - Yes : ZNumber of cooperators","pMCMC"]`; Fig. 4A. Extended Data Table 13). All `r words(nrow(df_hatching[df_hatching$FCheatinCamp == "Yes" & df_hatching$noFCoopsCamp == 1,]))` groups containing a cheat and a single cooperator failed completely, hatching none of their `r sum(df_hatching$no.eggsCampInc[df_hatching$FCheatinCamp == "Yes" & df_hatching$noFCoopsCamp == 1])` eggs, whereas every group with a cheat and four or five cooperators successfully produced one or more offspring. Among nests that produced offspring, the proportion of eggs that hatched did not differ between groups with and without cheats (PM (CI) = `r st_hatch_success[st_hatch_success$'Fixed Effects' == "Cheat in camp - No vs Cheat in camp - Yes","Posterior Mode (CI)"]`, pMCMC = `r st_hatch_success[st_hatch_success$'Fixed Effects' == "Cheat in camp - No vs Cheat in camp - Yes","pMCMC"]`) and did not vary differently with the number of cooperators (PM (CI) = `r st_hatch_success[st_hatch_success$'Fixed Effects' == "Cheat in camp - No : ZNumber of cooperators vs Cheat in camp - Yes : ZNumber of cooperators","Posterior Mode (CI)"]`, pMCMC = `r st_hatch_success[st_hatch_success$'Fixed Effects' == "Cheat in camp - No : ZNumber of cooperators vs Cheat in camp - Yes : ZNumber of cooperators","pMCMC"]`; Fig. 4B. Extended Data Table 13). These results indicate that cheating did not incrementally influence hatching success, but was instead associated with complete nest failure when there were few cooperators.
+
+```{r, echo=FALSE, message=FALSE, warning=F, fig.cap = paste0("**Figure 4: Complete hatching failure occurred in small groups with cheats.** (A) Percentage of nests producing no offspring in groups with (orange) and without (green) cheats as a function of the number of cooperators. Circle area is proportional to the number of groups with vertical lines showing 95% Wilson binomial confidence intervals. (B) Hatching success among nests that produced at least one offspring. Circles and error bars show means ± one standard error. Solid lines show fitted values from Bayesian generalised linear mixed models (Extended Data Table 13); shaded ribbons show 95% credible intervals.", " Sample sizes: (A) n = ", nrow(df_nest_failure), " groups; (B) n = ", nrow(df_hatch_success), " groups, those that hatched at least one egg."), fig.height = 9.5, fig.width = 9, dpi = 600, align = "center"}
+#**Model predictions for Figure 4 (fitted lines +/- 95% credible intervals)*
+#Hatching success is modelled in two parts (Model 11). Panel A is the probability that a nest hatched
+#no eggs (m_nest_failure_int_c1, binomial / logit link) and panel B the proportion of eggs hatching among nests that
+#hatched at least one (m_hatch_success_int_c1, binomial / logit link). Both are population-average (marginal) fits,
+#averaged over the random effects so they are comparable to the plotted group means, with the number of
+#"other" females held at its mean. The marginal mean is plogis(lp / sqrt(1 + c^2 * V)) with
+#c = 16*sqrt(3)/(15*pi) and V the total random-effect variance per posterior sample; results are
+#expressed as percentages. Number of cooperators was z-transformed before modelling.
+coop11_mean <- mean(df_nest_failure$noFCoopsCamp)
+coop11_sd   <- sd(df_nest_failure$noFCoopsCamp)
+logit_c     <- 16 * sqrt(3) / (15 * pi)
+coop11_grid <- seq(1, 5, by = 0.05)
+#Fitted values for one cheat-presence group across the plotted range, for either part of the model.
+#Returns a probability on the 0-1 scale; panel B converts it to a percentage.
+fitted_hurdle <- function(model, L, x, zOther){
+  z  <- (x - coop11_mean) / coop11_sd
+  lp <- model$Sol[, paste0("FCheatinCamp", L)] + model$Sol[, "ZnoFOther"] * zOther +
+        model$Sol[, paste0("FCheatinCamp", L, ":ZnoFCoops")] * z
+  plogis(lp / sqrt(1 + logit_c^2 * rowSums(model$VCV)))
+}
+df_nest_failure_fit <- do.call(rbind, lapply(c("No", "Yes"), function(L) do.call(rbind, lapply(coop11_grid, function(x){
+  p <- fitted_hurdle(m_nest_failure_int_c1, L, x, mean(df_nest_failure$ZnoFOther))
+  data.frame(FCheatinCamp = L, noFCoopsCamp = x, mean = median(p), lcl = quantile(p, 0.025), ucl = quantile(p, 0.975))}))))
+#Panel B is plotted as a percentage, so the fitted probabilities are multiplied by 100 here
+df_hatch_success_fit <- do.call(rbind, lapply(c("No", "Yes"), function(L) do.call(rbind, lapply(coop11_grid, function(x){
+  p <- fitted_hurdle(m_hatch_success_int_c1, L, x, mean(df_hatch_success$ZnoFOther)) * 100
+  data.frame(FCheatinCamp = L, noFCoopsCamp = x, mean = median(p), lcl = quantile(p, 0.025), ucl = quantile(p, 0.975))}))))
+#
+#**Observed values*
+#Panel A shows the proportion of groups that hatched nothing, with 95% Wilson binomial intervals, which
+#unlike a standard error behave sensibly at 0 and 1 and when only a few groups contribute.
+#The interval is computed with pmax/pmin over whole columns rather than row by row: Rmisc loads plyr,
+#whose mutate() masks dplyr's and silently ignores rowwise(), which would otherwise collapse the
+#interval to a single value recycled across every group size.
+Fig5aSum <- df_nest_failure %>% group_by(noFCoopsCamp, FCheatinCamp) %>%
+  dplyr::summarise(n = n(), k = sum(failed), pct = mean(failed), .groups = "drop") %>%
+  dplyr::mutate(wilson_p    = k / n,
+                wilson_den  = 1 + 1.96^2 / n,
+                wilson_hw   = 1.96 * sqrt(wilson_p * (1 - wilson_p) / n + 1.96^2 / (4 * n^2)),
+                lcl = pmax(0, (wilson_p + 1.96^2 / (2 * n) - wilson_hw) / wilson_den),
+                ucl = pmin(1, (wilson_p + 1.96^2 / (2 * n) + wilson_hw) / wilson_den)) %>%
+  dplyr::select(-wilson_p, -wilson_den, -wilson_hw)
+Fig5bDat <- df_hatch_success %>% mutate(hatch_pct = 100 * no.HatchedInc / no.eggsCampInc)
+Fig5bSum <- Fig5bDat %>% group_by(noFCoopsCamp, FCheatinCamp) %>%
+  dplyr::summarise(n = n(), mean = mean(hatch_pct),
+                   se = ifelse(n() > 1, sd(hatch_pct)/sqrt(n()), NA_real_), .groups = "drop")
+#
+Fig5a <- ggplot() +
+  geom_ribbon(data = df_nest_failure_fit, aes(x = noFCoopsCamp, ymin = lcl, ymax = ucl, fill = FCheatinCamp), alpha = 0.2, colour = NA) +
+  geom_line(data = df_nest_failure_fit, aes(x = noFCoopsCamp, y = mean, colour = FCheatinCamp), linewidth = 1) +
+  geom_linerange(data = Fig5aSum, aes(x = noFCoopsCamp, ymin = lcl, ymax = ucl, colour = FCheatinCamp),
+                 position = position_dodge(width = 0.3), linewidth = 0.5, alpha = 0.8) +
+  geom_point(data = Fig5aSum, aes(x = noFCoopsCamp, y = pct, fill = FCheatinCamp, size = n),
+             position = position_dodge(width = 0.3), shape = 21, colour = "black", alpha = 0.85) +
+  scale_colour_manual(values = c("Yes" = "#E69F00", "No" = "#009E73"), guide = "none") +
+  scale_fill_manual(values = c("Yes" = "#E69F00", "No" = "#009E73"), name = "Cheat present") +
+  scale_size_continuous(range = c(2.2, 7), name = "No. groups") +
+  scale_x_continuous(breaks = 1:5) + coord_cartesian(ylim = c(0, 1)) +
+  labs(x = "No. of cooperators in group", y = "Probability of nest failure") + t1 +
+  theme(axis.title.x = element_text(size = 14), axis.title.y = element_text(size = 14))
+#
+Fig5b <- ggplot() +
+  geom_ribbon(data = df_hatch_success_fit, aes(x = noFCoopsCamp, ymin = lcl, ymax = ucl, fill = FCheatinCamp), alpha = 0.2, colour = NA) +
+  geom_line(data = df_hatch_success_fit, aes(x = noFCoopsCamp, y = mean, colour = FCheatinCamp), linewidth = 1) +
+  #Individual groups behind the means
+  geom_point(data = Fig5bDat, aes(x = noFCoopsCamp, y = hatch_pct, colour = FCheatinCamp),
+  position = position_jitterdodge(jitter.width = 0.28, dodge.width = 0.3, seed = 1), alpha = 0.3, size = 1.3) +
+  geom_pointrange(data = Fig5bSum, aes(x = noFCoopsCamp, y = mean, ymin = mean - se, ymax = mean + se, fill = FCheatinCamp),
+                  position = position_dodge(width = 0.3), shape = 21, colour = "black", size = 0.55, fatten = 6, alpha = 0.9) +
+  scale_colour_manual(values = c("Yes" = "#E69F00", "No" = "#009E73"), guide = "none") +
+  scale_fill_manual(values = c("Yes" = "#E69F00", "No" = "#009E73"), name = "Cheat present") +
+  scale_x_continuous(breaks = 1:5) +
+  labs(x = "No. of cooperators in group", y = "Hatching success (%)\nof nests producing offspring") + t1 +
+  theme(axis.title.x = element_text(size = 14), axis.title.y = element_text(size = 14))
+#
+ggarrange(Fig5a, Fig5b, labels = c("A", "B"), ncol = 1, common.legend = TRUE, legend = "top")
+#
+```
+
+ 
+
+## **Discussion**
+
+Despite cheating occurring across diverse taxa, the conditions under which it can persist without driving cooperation to collapse remain unclear [@west2021a]. Our results show that cheats maximize their reproductive success in large groups, where they are relatively rare, suggesting that the public goods provided by cooperators, principally incubation of the communal nest, allow cheating to proliferate (Fig. 2A). This relationship appears to involve a threshold, where the costs imposed by cheats are minimised when two cooperators or more are present in groups (Fig. 2A & 4A). Individual strategies were also highly flexible, with females adjusting whether they cheated or cooperated in response to their social environment. This flexibility suggests that cheating is not a fixed individual strategy but an emergent and persistent feature of ostrich societies.
+
+These findings are consistent with theory predicting that cheats and cooperators can coexist when the fitness of cheats is negatively frequency-dependent and enough cooperators are present to buffer the costs of cheating[@doebeli_evolutionary_2004; @archetti_review_2012]. Support for this prediction comes mainly from experimental work on microorganisms, where cheating is typically studied as a genetically determined, relatively fixed phenotype[@ross-gillespie2007b; @gore2009a; @lujan2015; @patel2019; @foster2007; @asfahl2017], although facultative cheating has been described[@santorelli_facultative_2008]. The conditional cheating observed here may strengthen negative frequency dependence beyond what fixed strategies produce, because individuals can exploit cooperative groups when cheats are rare and avoid the costs of cheating in less favourable social environments. The same logic underlies the flexible tactics of producer–scrounger games[@barnard_producers_1981; @giraldeau_social_2000] and the conditional parasitism of communal nests in the cooperatively breeding greater ani, *Crotophaga major*[@riehlSocialParasitismAlternative2019].
+
+The primary behavioural mechanism underlying our results is reduced incubation effort, and in some cases apparent desertion by cooperators in small groups containing cheats. Abandoning incubation likely harms cooperators' current reproductive success, given they have invested eggs in nests. However, individuals are expected to base investment decisions on anticipated future benefits rather than sunk past investments[@sargentParentalInvestmentDecision1985], resulting in a trade-off between the immediate costs of desertion and the potential for future reproductive success [@williams1966a; @mcnamara2004; @nielsenIntraspecificNestParasitism2006]. Ostriches are long-lived and breed over many years[@bertram1992a], so the chances of reproducing in the future are likely high. At the same time, the costs of compensating for others’ reduced effort can be substantial, as they are often exposed to extreme temperatures and intense predation pressure[@magigeBreedingBiologyOstriches2009; @bertram1992a; @schou2021a]. Reducing investment in breeding attempts where cheats elevate current costs at the expense of future reproduction may therefore represent an adaptive response in long-lived species.
+
+The cues that female ostriches use to detect cheats remain unknown. Because egg laying and incubation overlap (Fig. 2C), a female's failure to incubate may only become apparent once incubation has begun. Consistent with this, cooperators reduced their incubation effort in response to cheats mainly later in incubation (Fig. 3B). This suggests that cooperators respond to the behaviour of other females during early incubation rather than to egg laying itself. Non-breeding females, which neither laid eggs nor incubated (classified as *other*), provide an indirect test of this idea. In groups without cheats, cooperators incubated less as the number of non-breeding females increased (PM (CI) = `r st_incubation_individual[st_incubation_individual$'Fixed Effects' == "Cheat in camp - No : ZNumber of other","Posterior Mode (CI)"]`, pMCMC = `r st_incubation_individual[st_incubation_individual$'Fixed Effects' == "Cheat in camp - No : ZNumber of other","pMCMC"]`. Extended Data Table 12). This suggests that cooperators adjust their incubation to the number of females that do not incubate, without necessarily distinguishing cheats from other non-contributors. Such a rule requires no recognition of individuals or eggs. Comparably simple rules reduce the costs of parasitism in other communally breeding birds. For example, greater anis (*Crotophaga major*) eject eggs laid later than the rest of the clutch, which removes most parasitic eggs without the need to recognise them [@riehl2010].
+
+In summary, by experimentally allocating individuals to groups of different sizes, our study identifies the conditions under which cheating can persist in a vertebrate cooperative system without causing its collapse. Although cheating is often expected to destabilise cooperation, our results suggest that cheats and cooperators can coexist when cheating is expressed conditionally and its benefits decline as cheats become more common. The greater resilience to cheats of groups with more cooperators is consistent with growing evidence that negative frequency-dependent selection can maintain cheating without undermining cooperation[e.g. @ross-gillespie2007b; @babajanyan2026; @ozkaya2018].
+
+## **Methods**
+
+```{r, echo=F, include=F}
+#Create a list of groups (yearcamps) that were included in the study after data cleaning
+yearcamps = unique(df_strategy_counts$yearcamp)
+#
+#Create a dataframe with all genotyped eggs that were included in the study
+geno_eggs = parentage2012.2018[parentage2012.2018$yearcamp %in% yearcamps & parentage2012.2018$daysfromEggsleft > -29,]
+#
+#Create a dataframe with all the eggs collected during the study
+eggs_collected = eggs2012.2018[which(eggs2012.2018$daysfromEggsleft > -29 & eggs2012.2018$yearcamp %in% yearcamps & !is.na(eggs2012.2018$yearcamp)),]
+```
+
+### Study population
+
+The research was conducted on a captive population of ostriches kept in fenced areas (range: 2400 - 70600 m2, median = 4700 m2) of Karoo habitat at the Oudtshoorn Research Farm, South Africa (33° 38’ 21.5“S, 22° 15’ 17.4”E). The population was established in 1990 with founding individuals from different farms across South Africa. The ostriches in this population are of a farmed breed that is genetically similar to southern African populations [@davids2012a], and are commonly referred to as South African Blacks (*Struthio camelus var. domesticus*). The study included `r length(unique(treatments2012.2018$id[treatments2012.2018$sex == "M" & treatments2012.2018$nofemales != 1]))` male and `r length(unique(treatments2012.2018$id[treatments2012.2018$sex == "F" & treatments2012.2018$nofemales != 1]))` female ostriches of breeding age (range = `r min(treatments2012.2018$age)`-`r max(treatments2012.2018$age)` years) that were allowed to breed in groups between May and December over a seven-year period (2012 to 2018). Birds were fed a balanced ostrich breeder diet (90–120 g protein, 7.5–10.5 MJ metabolisable energy, 26 g calcium, and 6 g phosphorus per kg feed) and *ad libitum* water during the breeding season. 
+
+### Experimental design
+
+We manipulated group composition by experimentally establishing `r length(unique(treatments2012.2018$yearcamp[treatments2012.2018$nofemales != 1]))` groups (10-17 groups per year) with different numbers of males (1 to 3) and females (2 to 6). Not all combinations of male and female group sizes were represented due to constraints on number of birds and enclosures available. Sample size was reduced by the exclusion of 15 groups for the following reasons: i) one or more group members were removed from the group (due to death, injury or aggressive behaviour), and not replaced, within two weeks from the experimental onset of natural incubation (see *Egg collection and incubation* section below. n~groups~ = `r length(unique(treatments2012.2018$yearcamp[treatments2012.2018$Removal.replacement.score == 4 & treatments2012.2018$nofemales != 1 & !is.na(treatments2012.2018$Removal.replacement.score)]))`); ii) no eggs were laid in the group during the time incubation was monitored (n~groups~ = `r nrow(camps2012.2018[camps2012.2018$no.eggsCampInc == 0 & camps2012.2018$nofemales != 1,])`); iii) no females were observed incubating in the group (n~groups~ = `r nrow(camps2012.2018[camps2012.2018$Ftotsit == 0 & camps2012.2018$nofemales != 1 & camps2012.2018$no.eggsCampInc != 0,])`); and iv) it was not possible to obtain any genetic samples for parentage analysis from the group (n~groups~ = `r nrow(camps2012.2018[camps2012.2018$totGenoeggsCampInc4 == 0 & camps2012.2018$nofemales != 1 & camps2012.2018$no.eggsCampInc != 0,])`). This resulted in a final sample of `r length(unique(df_females$yearcamp))` groups, `r length(unique(inds_filtered_M$id))` males, and `r length(unique(inds_filtered$id))` females. Of these, `r sum(table(inds_filtered_M$id) > 1)` males and `r sum(table(inds_filtered$id) > 1)` females were included in multiple years.
+
+### Classification of breeding strategies
+
+Females were classified as *cooperators*, *cheats* or *other* depending on whether they laid eggs in the nest and whether they contributed to incubation. *Cooperators* were females that contributed to incubation, regardless of whether they laid eggs in the nest or not. *Cheats* laid eggs in the nest, but did not incubate. *Other* females did not lay any eggs or contribute to incubation. We estimated individual egg laying through genetic parentage analyses of a sample of eggs and chicks (see *Genetic determination of parentage* below). Incubation bouts of one minute or less were excluded to avoid recording egg-laying behaviour as incubation. As a complete site scan required approximately three minutes, individuals with three or less minutes of cumulative incubation time across the season were classified as non-incubators, preventing classification based on a single brief detection.
+
+### Measuring reproduction
+#### Egg collection and incubation
+
+During the first approximate five months of the experiment, eggs were collected from nests twice a day and incubated artificially. Each egg was marked with the time of collection and group identity, and exposed to UV light for 20 minutes for disinfection. Eggs were incubated in weekly batches, and prior to incubation they were stored for 1–6 days under conditions that maintain hatching success [@brand2008b]: placed on turning trays (two daily 180° rotations) in a cold room (17°C) with relative humidity between 80% and 90%. Eggs were transferred to incubators set at 36.2°C and a relative humidity of 24% with automatic rotation of 60° around their long axis every hour. At day 39 of incubation, eggs were moved to hatching cabinets and thereafter inspected daily for signs of pipping.
+
+During the final approximate 50 days of the experiment (mean = 47; range = 23-61 days), eggs were no longer collected, and birds were allowed to incubate naturally. This phase, referred to as the "incubation period", allowed us to monitor the natural incubation behaviour of females. During the incubation period, nests were checked daily, and newly laid eggs were marked with the date and a unique egg identification number. The presence or absence of previously laid eggs was recorded to track the fate of each egg. In the first three years (2012–2014), birds were allowed to incubate eggs through to hatching. If no hatching was observed after 50 days of incubation, eggs were removed. From 2015 onwards, contact between adults and chicks had to be reduced following legislation aimed at reducing the spread of avian flu. Eggs were removed from nests just before the anticipated hatching date, approximately 40 days after the onset of the incubation period, and placed in artificial incubators to determine hatching success. In 2018, egg theft meant that groups had to restart their clutches and eggs had to be removed after 28 days, instead of 40 days, when birds were removed from their breeding enclosures.
+
+#### Genetic determination of parentage
+
+Blood samples were collected from adults prior to being placed in experimental groups and their offspring at hatching. Unhatched eggs were dissected to obtain blood or tissue samples. All procedures were approved by the Departmental Ethics Committee for Research on Animals (DECRA) of the Western Cape Department of Agriculture (project no. AP/BR/O/SC14).
+
+During the first three years of the study (2012–2014), parentage of `r nrow(parentage2012.2018[parentage2012.2018$yearcamp %in% yearcamps & parentage2012.2018$year < 2015,])` offspring was determined using seven highly polymorphic microsatellites previously shown to assign parentage with high confidence in ostriches [@bonato_investment_2009]. The number of samples genotyped per group was chosen to be proportional to the number of females in the group (aiming for 10 samples per female where possible), spread across the breeding season (range of samples per group = `r min(table(parentage2012.2018$yearcamp[parentage2012.2018$yearcamp %in% yearcamps & parentage2012.2018$year < 2015]))`–`r max(table(parentage2012.2018$yearcamp[parentage2012.2018$yearcamp %in% yearcamps & parentage2012.2018$year < 2015]))`). See Melgar et al., 2022 [@melgar2022] for details on the microsatellite protocol for parentage analysis.
+
+In the final four years of the study (2015–2018), parentage was determined using single-nucleotide polymorphisms (SNPs) from up to `r max(table(parentage2012.2018$yearcamp[parentage2012.2018$yearcamp %in% yearcamps & parentage2012.2018$year > 2014]))` offspring per group (we targeted 20 eggs during the artificial incubation phase, and 20 eggs during the natural incubation phase. Total samples = `r nrow(parentage2012.2018[parentage2012.2018$yearcamp %in% yearcamps & parentage2012.2018$year > 2014,])`, range of samples per group = `r min(table(parentage2012.2018$yearcamp[parentage2012.2018$yearcamp %in% yearcamps & parentage2012.2018$year > 2014]))`–`r max(table(parentage2012.2018$yearcamp[parentage2012.2018$yearcamp %in% yearcamps & parentage2012.2018$year > 2014]))`). See Melgar et al., 2022 [@melgar2022] for details on DNA extraction, identification of markers, and parentage analysis using SNPs.
+
+#### Individual reproductive success
+
+Genetic parentage data from eggs laid during the incubation period were used to estimate the reproductive success of individual females. However, as egg laying rates decline during incubation, and many eggs are broken when left in the nests [@melgar2022], parentage sample sizes from the incubation period were low. We therefore included eggs from the 28 days prior to the onset of incubation, which produced a more reliable estimate of the females that laid eggs in each group. This period of 28 days prior to the onset of incubation together with the incubation period is refereed to as the "laying period".
+
+The estimated number of eggs laid by an individual provided a proxy for reproductive success. To account for between-year variation, this value was then divided by the mean number of eggs laid by females in the same year, referred to as *relative number of eggs* in the paper.
+
+### Group reproductive success
+
+The reproductive output of groups was measured as the number of eggs produced during the incubation period. Group-level hatching success was defined as the percentage of these eggs that hatched, either in the nest or in artificial incubators.
+
+### Monitoring incubation behaviour
+
+Incubation behaviour was monitored through approximately three-hour observations at least three times per week using binoculars (10 x 40) and a telescope (20-60 x 80). Three observers rotated shifts from a camouflaged 10 m observation tower in the center of the groups. Each group was observed for 47 to 91 hours in total. Individual incubation effort was defined as the proportion of time each individual spent incubating (total time observed incubating divided by total observation time). Individuals were identified by colour-tags.
+
+### Monitoring aggressive behaviour
+
+Aggressive interactions between females were recorded during observation sessions using the following classifications: 1) hissing or grunting against another individual; 2) 1 + pursuing with lifted wings; 3) 2 + trotting and chasing; 4) 2 + running and chasing; 5) 2 + chasing by persistently sprinting; 6) kicking.
+
+### Statistical analyses
+#### General approach
+
+Data were analysed in R using Bayesian Linear Mixed Models (BLMM) with Markov chain Monte Carlo (MCMC) estimation in the package MCMCglmm[@hadfieldMCMCglmmCourseNotes2021]. For all non-binary response variable models, we used default fixed effect priors (independent normal priors with zero mean and large variance of 10^10^) and inverse gamma priors for random effects. For binary response variable models, fixed effect priors were specified as mu = 0, V = 1 + π2 / 3 (relatively flat on the logit scale), while parameter expanded priors were used for random effects (V = 1, nu = 0.002, alpha.mu = 0, alpha.V = 1000)[@hadfieldMCMCglmmCourseNotes2021]. The residual variance was fixed at 1 in binary models as it is not identifiable. Each analysis was run for 2000000 iterations with a burn-in of 200000 and a thinning interval of 500, retaining 3600 samples per chain. A random number seed was set before each model was fitted, so that every analysis reported here is exactly reproducible from the archived code. Convergence was checked by running models three times and visually examining the overlap of traces, levels of autocorrelation, and Gelman and Rubin’s convergence diagnostic (potential scale reduction factors <1.1 support model convergence).
+
+Fixed effects estimates were reported from models that included all terms of the same order and lower: all main-effect estimates are from models containing all other main effects, estimates of two-way interactions are from models including all two-way interactions and main effects, and so forth. Continuous explanatory variables were z-standardised (zero-centred with unit standard deviation) using the scale() function in R, if nothing else is specified. Curvilinear relationships were modelled using the quadratic terms that were computed from the z-standardised predictors before running the models. Quadratic terms were tested in models that included main effects, other quadratic effects and two-way interactions.
+
+Effect magnitudes were quantified using model coefficients and, where specified, posterior contrasts between coefficients. Fixed-effect coefficients and their contrasts are reported as posterior modes with 95% highest-posterior-density credible intervals (CIs), on the model’s linear-predictor scale. A fixed effect was considered significant when its 95% CI did not overlap with 0 and pMCMC was less than 0.05. Two-sided pMCMC values were calculated as twice the smaller of the proportions of posterior samples greater than zero and less than or equal to zero, with a minimum value of 1/N, where N is the number of retained posterior samples. To obtain absolute estimates and 95% CIs for each factor level and to facilitate custom contrasts between levels, we removed the global intercept from all models with fixed factors (unless otherwise specified below) and present absolute estimates. Differences between factor levels were estimated by subtracting corresponding posterior samples between levels and calculating the posterior mode, 95% CI, and pMCMC. Non-independence due to multiple data points per individual, group, camp (enclosure used repeatedly across years), and year was accounted for using random effects. The magnitude of random effects was quantified by calculating the percentage of variation explained by each random term (I2%: (Vi/V~total~)x100, where V~total~ is the sum of the random-effect and residual variance components)[@devillemereuilGeneralMethodsEvolutionary2016] after accounting for variation attributable to fixed effects. To account for distribution-specific variance, this variance was included in the denominator (Vi/(V~total~ + Vd) x100), where Vd is π2/3 for binomial models with a logit link, 1 for models with a probit link, and ln(1 + 1/λ) for Poisson models with a log link, with λ the fitted mean on the data scale. Random effect estimates are reported from models that included the highest order fixed effect terms.
+
+Most breeding groups contained a single communal nest, but in `r sum(df_strategy_counts$nonests[df_strategy_counts$BS == "Cheat"] == 2)` of the `r length(unique(df_strategy_counts$yearcamp))` groups a second nest was present. Additional nests resulted when more than one male dug a nest, when a nest was abandoned and another started, or when individuals laid sporadically outside the primary nest. We therefore included the number of nests in a group as a fixed effect in Models 1 and 2, and found that it had no effect on the frequency of cheating (Extended Data Tables 1 and 2). The number of nests was therefore not included in subsequent analyses.
+
+#### Specific analyses
+
+##### Model 1: Effect of group size on numbers of cheats and cooperators (Extended Data Table 1)
+
+We fitted a model with Poisson error distribution of the counts of individuals adopting different breeding strategies (cheat versus cooperator) within each group. The analysis included `r nrow(df_strategy_counts)` strategy-specific counts from `r length(unique(df_strategy_counts$yearcamp))` breeding groups, with each group contributing one count of cheats and one count of cooperators. Group size was defined as the number of females in the group, including non-breeding females (classified as *other* in later models). We fitted an interaction between breeding strategy and number of females, which allowed us to estimate separate slopes for cheats and cooperators. The number of nests in the group was also included as a fixed effect (see *General approach*). Year, camp and group were included as random effects.
+
+##### Model 2: Effect of group size on the proportion of cheats in groups (Extended Data Table 2)
+
+We modelled the proportion of cheats in relation to cooperators as draws from a binomial distribution with family = “multinomial2”. The response variable was the number of cheating females in each group versus the number of cooperators. The analysis included `r nrow(df_cheat_prop)` breeding groups. Note that group size was modelled with two separate fixed effects: number of cooperators, and number of *other* females. This allowed us to test how the proportion of cheats changed with number of cooperators while controlling the presence of non-breeding females. Number of nests in the group was included as a fixed effect (see *General approach*). As none of the fixed effects were factorial, we kept the global intercept in the model. Year and camp were included as random effects.
+
+##### Model 3: Effects of group composition, age and body mass on cheating probability (Extended Data Table 3)
+
+We modelled the probability of a female being a cheat each year as a binary variable using a Bernoulli error distribution with a probit link function (family = “threshold”). The analysis included `r nrow(df_cheat_prob)` observations of  `r length(unique(df_cheat_prob$id))` females distributed across `r length(unique(df_cheat_prob$yearcamp))` breeding groups. Only females that appeared in more than one year were included in this analysis. We included the number of cooperators (excluding the focal female), and number of *other* females (excluding the focal female) in each group as fixed effects. Excluding the focal female from these ensured that the social environment was defined independently of the focal female’s breeding strategy. Age, and body mass (kg) at the start of the breeding season were included as fixed effects. Year, camp, group and individual were included as random effects. As none of the fixed effects were factorial, we kept the global intercept in the model. 
+
+##### Model 4: Effects of breeding strategy and group composition on end of season body mass (Extended Data Table 4)
+
+We modelled whether cheats and cooperators differed in their body condition at the end of the breeding season by modelling female body mass at the end of incubation with a Gaussian error distribution, fitting breeding strategy together with its interactions with the number of cooperators, the number of *other* females, and body mass at the start of the season as fixed effects. The analysis included `r nrow(df_mass)` observations of `r length(unique(df_mass$id))` females distributed across `r length(unique(df_mass$yearcamp))` breeding groups. Only cheats and cooperators were included in this analysis, and individuals were excluded if they had no recorded start of season body mass (three individuals) or end of season body mass (one individual). Year, camp, group and individual were included as random effects. Cheats and cooperators did not differ in body mass at the end of the season (PM (CI) = `r st_mass[st_mass$'Fixed Effects' == "Cheats vs Cooperators","Posterior Mode (CI)"]`, pMCMC = `r st_mass[st_mass$'Fixed Effects' == "Cheats vs Cooperators","pMCMC"]`. Extended Data Table 4).
+
+##### Model 5: Effect of cheating and group composition on number of eggs laid (Extended Data Table 5)
+
+We modelled the number of eggs females laid each year using a Poisson error distribution with year as a random effect to account for year-to-year differences in the number of eggs laid. The analysis included `r nrow(df_eggs)` observations of `r length(unique(df_eggs$id))` females distributed across `r length(unique(df_eggs$yearcamp))` breeding groups. Only cheats and cooperators were included in this analysis, and since we were interested in comparing number of eggs produced by cheats and cooperators at different number of cooperators per group, groups with six cooperators were excluded (six was the maximum number of females included in a group). We fitted breeding strategy (a three-level factorial effect: 1) Cheats, 2) Cooperator in a group without a cheat, 3) Cooperator in a group with a cheat), number of *other*, and proportion of eggs broken in the nest as fixed effects. To test the effect of group size on egg production of cheats and cooperators, we fitted interactions between breeding strategy and both the linear and quadratic terms of the number of cooperators. Year, camp, group and individual were included as random effects.
+
+We also included a second version of model 5, which was specified in the same way, but data were filtered to exclude groups with only one cooperator (Extended Data Table 5).  This resulted in `r nrow(df_eggs_excl_1coop)` observations of `r length(unique(df_eggs_excl_1coop$id))` females distributed across `r length(unique(df_eggs_excl_1coop$yearcamp))` breeding groups. This additional analysis allowed us to test whether the effects observed in Model 5 were robust to the exclusion of the smallest groups. The results confirmed that groups with only one cooperator were important in explaining the significant effect of cheats on differences in cooperators' reproductive output across group sizes.
+
+##### Model 6: The reproductive success of individuals when they cheat and when they cooperate (Extended Data Table 6)
+
+We modelled the estimated number of eggs produced by females that were both cheats and cooperators across years. We modelled the number of eggs females laid each year using a Poisson error distribution with year as a random effect to account for year-to-year differences in the number of eggs laid. The analysis included `r nrow(df_eggs_within_female)` observations of `r length(unique(df_eggs_within_female$id))` females distributed across `r length(unique(df_eggs_within_female$yearcamp))` breeding groups. Breeding strategy (cheats or cooperates), number of females in the group, and age were included as fixed effects. Only individuals that cheated in some years and cooperated in others were included in this analysis. Year, camp, group and individual were included as random effects.
+
+##### Model 7: Group-level egg laying over time (Extended Data Table 7)
+
+The cumulative proportion of the total number of eggs laid in a nest that were present each day was modelled with a binomial error distribution and logit link function (family = "multinomial2"). The response variable was the eggs laid each day versus the remaining eggs to be laid that season. The analysis included `r nrow(df_laying_group)` observations in `r length(unique(df_laying_group$yearcamp))` groups across `r length(unique(df_laying_group$laydate_date))` observation days. The number of cooperators, number of *other* females, presence of cheats (two-level factorial effect: Yes or No), and the linear and quadratic effects of time in days since the start of the incubation period were included as fixed effects. Interactions between the presence of cheats and both the linear and quadratic effects of time were fitted to test the effect of cheats on the egg-laying patterns across time. Similarly, we fitted interactions between the number of cooperators and both the linear and quadratic effects of time to test the effect of number of cooperators on the temporal patterns of egg-laying. Egg counts were based on the first 32 days of the period with natural incubation, as some years did not have any data for later days (e.g. 2018). Year, camp and group were included as random effects. 
+
+##### Model 8: Effect of breeding strategy on the timing of egg laying (Extended Data Table 8)
+We examined whether cheats and cooperators differed in the timing of egg-laying by modelling whether a female laid an egg within a given two-day window of the laying period (ostriches lay at most every second day). We used a binomial error distribution (family = "categorical"). The analysis included `r nrow(df_laying_window)` observations of `r length(unique(df_laying_window$id))` females distributed across `r length(unique(df_laying_window$yearcamp))` groups and `r n_distinct(df_laying_window$year, df_laying_window$Window_2days)` two-day windows. Only cheats and cooperators were included in this analysis. Breeding strategy and the number of females in the group were included as fixed effects, together with interactions between breeding strategy and both the linear and quadratic effects of window position within the laying period. Year, camp, group, and individual were included as random effects.
+
+##### Model 9: Aggression by cooperators (Extended Data Table 9)
+
+To test whether cooperators directed more aggression towards cheats than toward other cooperators, we modelled the number of aggressive interactions initiated by cooperators with a Poisson error distribution. The analysis included `r sum(df_aggression$no.ints)` aggressive interactions (`r sum(df_aggression$no.ints[df_aggression$BSvic == "Cheat"])` against cheats and `r sum(df_aggression$no.ints[df_aggression$BSvic == "Cooperator"])` against cooperators) in `r length(unique(df_aggression$yearcamp))` groups, with each group contributing one count of aggressive interactions against cheats and one count of aggressive interactions against cooperators. Only groups with cheats and with more than one cooperator were included. Victim breeding strategy, observation time, the number of potential victims of the corresponding breeding strategy, and the number of females in the group were fitted as fixed effects, together with an interaction between victim breeding strategy and the number of females. Potential victims were defined as the number of cheats in the group when the victim was a cheat, and as the number of cooperators minus one when the victim was a cooperator, because aggressors were always cooperators and they could not be aggressive towards themselves. For the same reason, groups with only one cooperator were excluded from the analyses. Year, camp, and group were fitted as random effects.
+
+##### Model 10: Effect of cheating and group composition on group-level incubation effort (Extended Data Table 10)
+
+The proportion of time nests were incubated (time incubated vs time not incubated) was modelled with a binomial error distribution and logit link function (family = "multinomial2"). The analysis included the primary nests of `r nrow(df_incubation_group)` groups across `r words(length(unique(df_incubation_group$year)))` years. Since we were interested in comparing incubation effort by groups with and without cheats at different number of cooperators per group, groups with six cooperators (no cheats possible) were excluded. The presence of cheats (Yes or No) was included as a fixed effect along with interactions between presence of cheats and number of cooperators, and between presence of cheats and number of *other* females. Year and camp were included as random effects.
+
+##### Model 11: Effects of cheating on group-level incubation effort over time (Extended Data Table 11)
+
+The proportion of time groups spent incubating each day (incubation time vs time not incubating) was modelled with a binomial error distribution and logit link function (family = "multinomial2"). The analysis included `r nrow(df_incubation_time)` observations in the primary nest of `r length(unique(df_incubation_time$yearcamp))` groups. Only data from the first 32 days of the incubation period each year were included for this analysis, as some years had no observations beyond this time. Only groups where female incubation was recorded during this time were included. We included presence of cheats (Yes or No), number of cooperators, number of *other* females, and the linear and quadratic effects of time (days from onset of incubation period) as fixed effects. We tested the effects of cheating on temporal dynamics of incubation by fitting interactions between the presence of cheats and both the linear and quadratic effects of time. Similarly, we fitted interactions between number of cooperators and both the linear and quadratic effects of time to test if patterns of incubation through time changed in relation of numbers of cooperators. Year, camp and group were included as random effects.
+
+##### Model 12: Effects of cheating, group composition and reproductive investment on individual incubation effort (Extended Data Table 12)
+
+The proportion of time females spent incubating per year (incubation time vs time not incubating) was modelled with a binomial error distribution and logit link function (family = "multinomial2"). The analysis included `r nrow(df_incubation_individual)` individual-year observations of incubations effort from 131 individuals in `r length(unique(df_incubation_individual$yearcamp))` groups. Groups with six cooperators were excluded from this analysis. The presence of cheats (Yes or No) was included as a fixed effect. An interaction between presence of cheats and relative reproductive investment (square root-transformed) was fitted to test whether females adjusted their incubation behaviour in response to cheats depending on the number of eggs they had in the nest. We also fitted interactions between presence of cheats and both the number of *other* females and the number of cooperators. Finally, a three-way interaction between presence of cheats, relative reproductive success and number of cooperators was fitted. Year, camp, group and individual were included as random effects.
+
+##### Model 13: Effect of cheating on hatching success (Extended Data Table 13)
+
+Hatching success was modelled in two parts, because cheating affected whether a nest hatched any eggs at all and the proportion of eggs that hatched among successful nests differently. First, we modelled complete nest failure (no eggs hatched) as a binary response using a binomial error distribution with a logit link. This analysis included nests of `r nrow(df_nest_failure)` groups. The presence of cheats, its interaction with the number of cooperators, and the number of other females were included as fixed effects. Second, among nests that hatched at least one egg (n = `r nrow(df_hatch_success)`), we modelled the number of hatched eggs out of the total number of eggs laid using a binomial error distribution with the same fixed effects. Year and camp were included as random effects in both models. The quadratic of the number of cooperators was investigated but not included in the final model. Every group containing a cheat and a single cooperator failed completely, and because these groups sit at the low end of the cooperator range, they exerted strong leverage on the estimated curvature, producing a predicted decline in hatching success in the largest groups that is not present in the data. Removing single-cooperator groups eliminated the difference in curvature between groups with and without cheats. Groups with six cooperators, where cheating never occurs were excluded from both analyses.
+
+
+##### Model 14: Effect of cheating on activity allocation of groups (Extended Data Table 14)
+
+We used segmented (breakpoint) regression to test how the allocation of activity between egg-laying and incubation changed over the course of the incubation period (days since the experimental onset of incubation), and whether the timing of the transition between egg-laying and incubation differed depending on whether a cheat was present in the group or not. Activity allocation (act_alloc) was calculated as propsit / (propsit + prop_eggs), where propsit is the proportion of observation time spent incubating (minutes incubating / minutes observed) and prop_eggs is the number of eggs laid by a group during in a given day, divided by the population maximum eggs laid by a group in a day (number of eggs laid / 6). Expressing egg-laying as a proportion, rather than as a raw egg count, placed prop_eggs on the same 0–1 scale as propsit, allowing the two measures to be combined into a single, comparable index of relative activity allocation. This index ranges from 0 (activity allocated entirely to egg-laying) to 1 (activity allocated entirely to incubation).
+
+We used a different statistical framework from the rest of our analyses in this model, as Bayesian MCMC estimation of breakpoint location is not currently supported by available R packages. Instead, models were fitted as linear mixed-effects models in the package *nlme* [@pinheiro2026], with the breakpoint estimated using maximum likelihood via the *segmented* package's extension for mixed models, *segmented.lme* [@muggeo2008; @muggeo2014]. This method estimates the location of a breakpoint in the effect of a continuous predictor together with the change in slope occurring at that point, by iteratively linearizing the breakpoint term and refitting the model until convergence.
+
+Because the *segmented* package does not support bounded proportion-response distributions, we applied a logit transformation to activity allocation (natural log of the odds ratio, using R's *qlogis()* function, with proportions constrained to the interval [0.01, 0.99] to avoid undefined values at the boundaries). As in our Bayesian models, day since incubation onset and covariates were z-transformed using the *scale()* function in R prior to analysis. As segmented regression cannot straightforwardly accommodate an interaction between a categorical grouping variable and the location of a breakpoint, we fitted two separate segmented mixed-effects models (one for groups without a cheat and one for groups with a cheat) rather than a single combined model. Each model estimated a single breakpoint in the effect of days since incubation onset, allowing the slope of the day effect to differ before and after the estimated breakpoint, and included the number of cooperating females and number of other females present as covariates. Group was included as the only random effect; because *nlme*, unlike *MCMCglmm*, cannot fit crossed random effects, year and camp could not be modelled as separate random terms as in our other group-level analyses. 
+
+This analysis included `r nrow(df_activity_allocation)` observations (`r nrow(df_activity_allocation[df_activity_allocation$CheatinCamp == "No",])` in groups without cheats, and `r nrow(df_activity_allocation[df_activity_allocation$CheatinCamp == "Yes",])` in groups with cheats) of `r length(unique(df_activity_allocation$yearcamp))` groups (`r length(unique(df_activity_allocation$yearcamp[df_activity_allocation$CheatinCamp == "Yes"]))` with and `r length(unique(df_activity_allocation$yearcamp[df_activity_allocation$CheatinCamp == "No"]))` without cheats) across `r length(unique(df_activity_allocation$date))` observation days. Only data from the first 32 days of the incubation period each year were included in this analysis, and only groups where female incubation was recorded during this time were included.
+
+Fixed effects are reported as parameter estimates with standard errors, 95% Wald-type confidence intervals, t-statistics, denominator degrees of freedom, and p-values from two-sided t-tests using the degrees of freedom estimated by *nlme.* Fixed effects were considered significant when the 95% CI did not overlap with 0 and p was less than 0.05. An exception applies to the two parameters directly describing the breakpoint itself, the change in slope (U) and the breakpoint location (G0), for which standard hypothesis testing is not valid, because the location of a breakpoint is not identifiable under the null hypothesis of no breakpoint [@davies1987]. We therefore report only point estimates and 95% CIs for U and G0, without associated p-values.
+
+### Data availability
+
+All data generated or analysed during this study are available at GitHub: https://github.com/MelgarJulian/Ostrich_cheating.git
+
+### Code availability
+
+All scripts used for data processing, statistical analyses and generating figures are available at GitHub: 
+https://github.com/MelgarJulian/Ostrich_cheating.git
+
+## **References**
+::: {#refs}
+:::
+
+## **Acknowledgements**
+
+We are thankful to Stuart West for comments on the manuscript, to Per Unneberg for advice and assistance with sequencing and parentage analysis, to all the staff at Oudtshoorn Research Farm for assistance with data collection and maintenance of the birds, and to the Western Cape Government for use of their resources.
+
+## **Funding**
+
+This research was funded by the Swedish Research Council (grant number 2017-03880), the Knut and Alice Wallenberg Foundation (Wallenberg Academy fellowship numbers 2013.0129 and 2018.0138), Carl Tryggers (grant numbers 12: 92 and 19: 71) to C.K.C., and a stipend from the Carlsberg Foundation to M.F.S. and by the Jörgen Lindström stipendium to J.M. The maintenance and development of the ostrich population used in this study was funded by the Western Cape Department of Agriculture and supported by grants from the Western Cape Agricultural Research Trust (Grant number 0070/000VOLSTRUISE: Cloete), as well as the Technology and Human Resources for Industry program (THRIP – Grant number TP14081390585) of the South African National Research Foundation to S.C
+
+## **Author contributions**
+
+**Conceptualization**: J.M., S.C, C.K.C.; **Data curation**: J.M., M.F.S., M.B., Z.B., A.E., S.C, C.K.C; **Formal analysis**: J.M., M.F.S., C.K.C; **Investigation**: J.M., M.F.S., M.B., P.T.M., C.K.C; **Methodology**: J.M., M.F.S.,  M.B., Z.B., A.E., S.C, B.H., M.Å., A.D., C.K.C; **Project administration**: S.C, C.K.C; **Writing—original draft**: J.M., C.K.C.; **Writing—reviewing and editing**: J.M., M.F.S., M.B., Z.B., A.E., S.C, P.T.M, B.H., M.Å., A.D., C.K.C.
+
+## **Competing interests**
+
+The authors declare no competing interests.
+
+## **Materials & Correspondence**
+
+Correspondence and material requests should be addressed to J.M. (e-mail: [julian.melgar\@outlook.com](mailto:julian.melgar@outlook.com){.email}) and C.K.C. (e-mail: [charlie.cornwallis\@biol.lu.se](mailto:charlie.cornwallis@biol.lu.se){.email}).
+
+## **Extended data figures and tables**
+
+Extended data items and tables are included in the *Extended Data* file.
